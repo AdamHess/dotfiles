@@ -1,6 +1,7 @@
 alias g='git'
 alias tg='terragrunt'
 alias tf='terraform'
+alias cdds='/workspaces/docr/src/python/mx2/docket_sync'
 
 
 function _pants_completions() {
