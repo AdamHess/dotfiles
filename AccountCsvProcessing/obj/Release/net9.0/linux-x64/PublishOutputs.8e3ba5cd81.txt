@@ -1,0 +1,2 @@
+/root/RiderProjects/AccountCsvProcessing/AccountCsvProcessing/bin/Release/net9.0/linux-x64/publish/CsvProcessing
+/root/RiderProjects/AccountCsvProcessing/AccountCsvProcessing/bin/Release/net9.0/linux-x64/publish/Account.csv
