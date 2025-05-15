@@ -6,4 +6,7 @@ public class AccountCsvModel
     public string Name { get; set; }
 
     [Name("BillingAddress.street")] public string BillingStreet { get; set; }
+    
+    [Name("of_Roles__c")]
+    public int NumberOfRoles { get; set; }
 }

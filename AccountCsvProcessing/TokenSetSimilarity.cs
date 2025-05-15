@@ -30,11 +30,12 @@ public static class TokenSetSimilarity
         return Math.Max(ratio3, Math.Max(ratio1, ratio2));
     }
 
-    private static IEnumerable<string> Tokenize(string input)
+    private static List<string> Tokenize(string input)
     {
-        ReadOnlySpan<char> span = input;
+        var span = input.AsSpan();
         int len = span.Length;
         int wordStart = -1;
+        var tokens = new List<string>();
 
         for (int i = 0; i <= len; i++)
         {
@@ -45,11 +46,14 @@ public static class TokenSetSimilarity
             }
             else if (isEnd && wordStart != -1)
             {
-                yield return span.Slice(wordStart, i - wordStart).ToString();
+                tokens.Add(span.Slice(wordStart, i - wordStart).ToString());
                 wordStart = -1;
             }
         }
+
+        return tokens;
     }
+
 
     private static string JoinSorted(IEnumerable<string> tokens)
     {
@@ -60,7 +64,7 @@ public static class TokenSetSimilarity
         foreach (var token in tokens)
         {
             if (count >= buffer.Length)
-                Array.Resize(ref buffer, buffer.Length * 2);
+                Array.Resize(ref buffer, buffer.Length * 4);
             buffer[count++] = token;
         }
 

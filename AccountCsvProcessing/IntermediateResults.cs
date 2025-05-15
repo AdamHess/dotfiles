@@ -12,4 +12,5 @@ public class IntermediateResults
     public string AccountId { get; set; }
     public string MatchToAccountId { get; set; }
     public double MatchPercentage { get; set; }
+    public double RoleCount { get; set; }
 }

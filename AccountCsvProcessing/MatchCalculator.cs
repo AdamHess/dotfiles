@@ -29,7 +29,7 @@ public class MatchCalculator(string inputFile, string outputFile)
         return LoadCsv<IntermediateResults>(outputFile);
     }
 
-    private static List<T> LoadCsv<T>(string inputFile) where T : class
+    public static List<T> LoadCsv<T>(string inputFile) where T : class
     {
         using var reader = new StreamReader(inputFile);
         using var csv = new CsvReader(reader, CultureInfo.InvariantCulture);
@@ -80,7 +80,8 @@ public class MatchCalculator(string inputFile, string outputFile)
             {
                 AccountId = account1.Id,
                 MatchToAccountId = account2.Id,
-                MatchPercentage = matchPercentage
+                MatchPercentage = matchPercentage,
+                RoleCount = account1.NumberOfRoles
             });
         }
     }
