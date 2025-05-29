@@ -13,13 +13,13 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="CsvHelper" Version="33.0.1"/>
+        <PackageReference Include="CsvHelper" Version="33.0.1" />
         <PackageReference Include="FuzzySharp" Version="2.0.2" />
     </ItemGroup>
 
     <ItemGroup>
       <None Update="Account.csv">
-        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </None>
       <None Update="IntermediateResults.csv">
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

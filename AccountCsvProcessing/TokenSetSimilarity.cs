@@ -39,14 +39,14 @@ public static class TokenSetSimilarity
 
         for (int i = 0; i <= len; i++)
         {
-            bool isEnd = i == len || char.IsWhiteSpace(span[i]);
+            var isEnd = i == len || char.IsWhiteSpace(span[i]);
             if (!isEnd && wordStart == -1)
             {
                 wordStart = i;
             }
             else if (isEnd && wordStart != -1)
             {
-                tokens.Add(span.Slice(wordStart, i - wordStart).ToString());
+                tokens.Add(span[wordStart..i].ToString());
                 wordStart = -1;
             }
         }
@@ -119,9 +119,7 @@ public static class TokenSetSimilarity
                 row1[j] = Math.Min(Math.Min(row1[j - 1] + 1, row0[j] + 1), row0[j - 1] + cost);
             }
 
-            var temp = row0;
-            row0 = row1;
-            row1 = temp;
+            (row0, row1) = (row1, row0);
         }
 
         return row0[lenT];

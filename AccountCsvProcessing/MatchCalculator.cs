@@ -1,52 +1,38 @@
-using System.Globalization;
-using CsvHelper;
-
 namespace CsvProcessing;
 
-public class MatchCalculator(string inputFile, string outputFile)
+public class MatchCalculator(string outputFile)
 {
     private const double NameWeight = 0.4;
     private const double AddressWeight = 0.6;
     private const double MinimumMatchThreshold = 0.85;
     private static int _recordsProcessed;
 
-    public async Task<List<IntermediateResults>> Execute()
+    public async Task<List<IntermediateResults>> Execute(List<AccountCsvModel> accounts)
     {
-        await using var logger = new CsvLogger<IntermediateResults>(outputFile);
-        var accounts = LoadCsv<AccountCsvModel>(inputFile);
+        await using (var logger = new CsvLogger<IntermediateResults>(outputFile))
+        {
+        
 
-        await Parallel.ForEachAsync(accounts,
-            new ParallelOptions
-            {
-                MaxDegreeOfParallelism = 32
-            },
-            async (account, cancelToken) =>
-            {
-                await ProcessAccountAsync(account, accounts, logger, cancelToken);
-            });
+            await Parallel.ForEachAsync(accounts,
+                new ParallelOptions
+                {
+                    MaxDegreeOfParallelism = 16
+                },
+                async (account, cancelToken) => { await ProcessAccountAsync(account, accounts, logger, cancelToken); });
 
-        _recordsProcessed = 0;
-        return LoadCsv<IntermediateResults>(outputFile);
-    }
+            _recordsProcessed = 0;
+        }
+        
 
-    public static List<T> LoadCsv<T>(string inputFile) where T : class
-    {
-        using var reader = new StreamReader(inputFile);
-        using var csv = new CsvReader(reader, CultureInfo.InvariantCulture);
-        return csv.GetRecords<T>().ToList();
+        return CsvBinder.LoadCsv<IntermediateResults>(outputFile);
     }
 
     private static double CalculateMatchPercentage(AccountCsvModel account1, AccountCsvModel account2)
     {
-        var nameMatch = TokenSetSimilarity.TokenSetRatio(account1.Name, account2.Name) / 100.0;
+        
+        var nameMatch = TokenSetSimilarity.TokenSetRatio(account1.Name, account2.Name) / 100.0;    
 
-        var account1Address = account1.BillingStreet;
-        var account2Address = account2.BillingStreet;
-
-        if (string.IsNullOrEmpty(account1Address) || string.IsNullOrEmpty(account2Address))
-            return NameWeight * nameMatch;
-
-        var addressMatch = TokenSetSimilarity.TokenSetRatio(account1Address, account2Address) / 100.0;
+        var addressMatch = TokenSetSimilarity.TokenSetRatio(account1.BillingStreet, account2.BillingStreet) / 100.0;
 
         return NameWeight * nameMatch + AddressWeight * addressMatch;
     }
@@ -71,6 +57,8 @@ public class MatchCalculator(string inputFile, string outputFile)
         CsvLogger<IntermediateResults> logger, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        
+        //skip self compares
         if (account1.Id == account2.Id) return;
 
         var matchPercentage = CalculateMatchPercentage(account1, account2);
@@ -78,11 +66,13 @@ public class MatchCalculator(string inputFile, string outputFile)
         {
             await logger.AddEntryAsync(new IntermediateResults
             {
-                AccountId = account1.Id,
-                MatchToAccountId = account2.Id,
+                AccountId1 = account1.Id,
+                AccountId2 = account2.Id,
                 MatchPercentage = matchPercentage,
                 RoleCount = account1.NumberOfRoles
             });
         }
     }
+
+ 
 }

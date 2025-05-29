@@ -36,6 +36,13 @@ public class CsvLogger<T> : IAsyncDisposable
     {
         await _channel.Writer.WriteAsync(entry);
     }
+    public async Task AddEntriesAsync(IEnumerable<T> entries)
+    {
+        foreach (var entry in entries)
+        {
+            await _channel.Writer.WriteAsync(entry);
+        }
+    }
 
     private async Task BackgroundWriterAsync()
     {
@@ -85,12 +92,13 @@ public class CsvLogger<T> : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
-        _cts.Cancel(); // Stop the timer
+        await _cts.CancelAsync(); // Stop the timer
         _channel.Writer.Complete(); // Signal no more entries
         await _backgroundWriterTask; // Wait for flush to finish
 
         await _csvWriter.DisposeAsync();
         await _writer.DisposeAsync();
         _cts.Dispose();
+        GC.SuppressFinalize(this);
     }
 }
