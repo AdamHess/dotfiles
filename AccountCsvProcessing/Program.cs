@@ -33,7 +33,9 @@ public class Program
             {
                 Id = m.AccountId,
                 Name = m.Name == groupAccount.Name ? null : groupAccount.Name,
-                BillingStreet = m.Street == groupAccount.BillingStreet ? null : groupAccount.BillingStreet
+                OldName = m.Name == groupAccount.Name ? null : m.Name,
+                Street = m.Street == groupAccount.BillingStreet ? null : groupAccount.BillingStreet,
+                OldStreet = m.Street == groupAccount.BillingStreet ? null : m.Street
             };
 
         });
@@ -47,7 +49,7 @@ public class Program
 
     private static async Task<List<GroupingResults>> ProcessAndLogGroupingResults(List<AccountCsvModel> accounts, List<IntermediateResults> intermediateResults)
     {
-        var groupingResults =  GetDistinctSingleGroupedRecordsThatChanged(accounts, intermediateResults);
+        var groupingResults =  GetDistinctSingleGroupedRecordsThatChanged(accounts, intermediateResults).OrderBy(m=> m.GroupAccountId).ToList();
         var resultsFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"GroupingResults-{DateTime.Now:yyyy-MM-dd_HH-mm-ss}.csv");
         await using var logger = new CsvLogger<GroupingResults>(resultsFile);
         await logger.AddEntriesAsync(groupingResults);
@@ -89,17 +91,12 @@ public class Program
             var account = accountDict[m.AccountId];
             m.Name = account.Name;
             m.Street = account.BillingStreet;
+            m.NPI = account.NPI;
             return m;
-        });
-
-
-        var changedResultsOnly = populatedWithData.Where(m =>
-        {
-            var account = accountDict[m.GroupAccountId];
-            return account.Name != m.Name || account.BillingStreet != m.Street;
         }).ToList();
         
-        var groupLeaders = changedResultsOnly
+        
+        var groupLeaders = populatedWithData
             .Select(m => m.GroupAccountId)
             .Distinct()
             .Select(m => new GroupingResults()
@@ -110,10 +107,57 @@ public class Program
                 Street = accountDict[m].BillingStreet,
                 IsGroupLeader = true
             }).ToList();
-
-
-        changedResultsOnly.AddRange(groupLeaders);
         
+        populatedWithData.AddRange(groupLeaders);
+
+        var nonGroupLeaderNpiRecords = populatedWithData.GroupBy(m => m.GroupAccountId)
+            .Where(m => m.Any(g => !g.IsGroupLeader && !string.IsNullOrEmpty(g.NPI)))
+            .ToList();
+        
+        Console.WriteLine($"There are {nonGroupLeaderNpiRecords.Count} groups where the NPI account is not a leader");
+        //NPI records should never be overwritten and instantly become the group leader
+        List<string> forcedChangedGroupLeaderIds = [];
+        foreach (var group in nonGroupLeaderNpiRecords)
+        {
+            var groupLeader = group.First(m => m.IsGroupLeader);
+            var forcedLeader = group.First(m => !string.IsNullOrWhiteSpace(m.NPI));
+            Console.WriteLine($"group leader was {groupLeader.AccountId} and is now {forcedLeader.AccountId}" );
+            groupLeader.IsGroupLeader = false;
+            forcedLeader.IsGroupLeader = true;
+            foreach (var member in group)
+            {
+                member.GroupAccountId = forcedLeader.AccountId;
+            }
+            forcedChangedGroupLeaderIds.Add(forcedLeader.AccountId);
+            
+
+        }
+        var changedResultsOnly = populatedWithData.Where(m =>
+        {
+            var account = accountDict[m.GroupAccountId];
+            return account.Name != m.Name || account.BillingStreet != m.Street;
+        }).ToList();
+        
+        // need to add back group leaders because the diff removed them
+        var addBackInGroupLeaders = changedResultsOnly.Select(m => m.GroupAccountId)
+            .Distinct()
+            .Select(m =>
+            {
+                var account = accountDict[m];
+                return new GroupingResults()
+                {
+                    AccountId = m,
+                    GroupAccountId = m,
+                    Name = account.Name,
+                    Street = account.BillingStreet,
+                    NPI = account.NPI,
+                    IsGroupLeader = true,
+                    IsForcedGroupLeader = forcedChangedGroupLeaderIds.Contains(m)
+                };
+            }).ToList();
+
+        changedResultsOnly.AddRange(addBackInGroupLeaders);
+
         return changedResultsOnly;
     }
 }

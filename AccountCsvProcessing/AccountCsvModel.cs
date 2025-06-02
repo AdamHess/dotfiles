@@ -21,5 +21,8 @@ public class AccountCsvModel
     [Name("of_Roles__c")]
     public int NumberOfRoles { get; set; }
     
+    [Name("NPI__c")]
+    public string NPI { get; set; }
+    
     public bool IsPerson => RecordTypeName == "Person Account";
 }

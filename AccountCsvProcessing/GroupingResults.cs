@@ -8,4 +8,7 @@ public class GroupingResults
     public string Name { get; set; }
     public string Street { get; set; }
     public bool IsGroupLeader { get; set; }
+    public bool IsForcedGroupLeader { get; set; }
+    public string NPI { get; set; }
+    
 }

@@ -91,7 +91,7 @@ public static class TokenSetSimilarity
         if (a.Length == 0 && b.Length == 0) return 100;
         if (a.Equals(b, StringComparison.Ordinal)) return 100;
 
-        int distance = Levenshtein(a, b);
+        int distance = LevenshteinUnsafe(a, b);
         int maxLen = Math.Max(a.Length, b.Length);
         return (int)((1.0 - (double)distance / maxLen) * 100);
     }
@@ -115,13 +115,47 @@ public static class TokenSetSimilarity
             row1[0] = i;
             for (int j = 1; j <= lenT; j++)
             {
-                int cost = s[i - 1] == t[j - 1] ? 0 : 1;
-                row1[j] = Math.Min(Math.Min(row1[j - 1] + 1, row0[j] + 1), row0[j - 1] + cost);
-            }
+                int cost = (s[i - 1] ^ t[j - 1]) == 0 ? 0 : 1;
+                row1[j] = row1[j - 1] + 1;
+                if (row0[j] + 1 < row1[j]) row1[j] = row0[j] + 1;
+                int replace = row0[j - 1] + cost;
+                if (replace < row1[j]) row1[j] = replace;            }
 
             (row0, row1) = (row1, row0);
         }
 
         return row0[lenT];
+    }
+    
+    public static unsafe int LevenshteinUnsafe(string s, string t)
+    {
+        int lenS = s.Length;
+        int lenT = t.Length;
+
+        if (lenS == 0) return lenT;
+        if (lenT == 0) return lenS;
+
+        int* prev = stackalloc int[lenT + 1];
+        int* curr = stackalloc int[lenT + 1];
+
+        for (int j = 0; j <= lenT; j++)
+            prev[j] = j;
+
+        for (int i = 1; i <= lenS; i++)
+        {
+            curr[0] = i;
+            for (int j = 1; j <= lenT; j++)
+            {
+                int cost = s[i - 1] == t[j - 1] ? 0 : 1;
+                int insert = curr[j - 1] + 1;
+                int delete = prev[j] + 1;
+                int replace = prev[j - 1] + cost;
+                curr[j] = Math.Min(Math.Min(insert, delete), replace);
+            }
+            var temp = prev;
+            prev = curr;
+            curr = temp;
+        }
+        return prev[lenT];
     }
 }

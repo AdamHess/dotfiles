@@ -14,10 +14,6 @@ public class MatchCalculator(string outputFile)
         
 
             await Parallel.ForEachAsync(accounts,
-                new ParallelOptions
-                {
-                    MaxDegreeOfParallelism = 16
-                },
                 async (account, cancelToken) => { await ProcessAccountAsync(account, accounts, logger, cancelToken); });
 
             _recordsProcessed = 0;
@@ -42,19 +38,17 @@ public class MatchCalculator(string outputFile)
     {
         cancelToken.ThrowIfCancellationRequested();
 
-        await Parallel.ForEachAsync(accounts,
-            new ParallelOptions { MaxDegreeOfParallelism = 32 },
-            async (account2, cancellationToken) =>
-            {
-                await ExecuteIndividualCompareAsync(account1, account2, logger, cancellationToken);
-            });
-
+        foreach (var account2 in accounts)
+        {
+            await ExecuteIndividualCompareAsync(account1, account2, logger, cancelToken);
+        }
+        
         Interlocked.Increment(ref _recordsProcessed);
         Console.WriteLine($"Processed account ID: {account1.Id}. Total processed: {_recordsProcessed}/{accounts.Count}.");
     }
 
     private static async Task ExecuteIndividualCompareAsync(AccountCsvModel account1, AccountCsvModel account2,
-        CsvLogger<IntermediateResults> logger, CancellationToken cancellationToken)
+        CsvLogger<IntermediateResults> logger, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
         
