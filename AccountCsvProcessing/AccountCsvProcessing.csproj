@@ -10,6 +10,7 @@
         <InvariantGlobalization>true</InvariantGlobalization>
         <AssemblyName>CsvProcessing</AssemblyName>
         <RootNamespace>CsvProcessing</RootNamespace>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     </PropertyGroup>
 
     <ItemGroup>

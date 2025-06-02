@@ -12,6 +12,7 @@ public class Program
         var calculator = new MatchCalculator(intermediateFile);
         Console.WriteLine($"Intermediate files: {intermediateFile}");
         var intermediateResults = await calculator.Execute(accounts);
+        var intermediateResults = CsvBinder.LoadCsv<IntermediateResults>(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "IntermediateResults.csv"));
         var groupingResults = await ProcessAndLogGroupingResults(accounts, intermediateResults);
         await GenerateDataloadFile(accounts, groupingResults);
     }
@@ -50,6 +51,7 @@ public class Program
     private static async Task<List<GroupingResults>> ProcessAndLogGroupingResults(List<AccountCsvModel> accounts, List<IntermediateResults> intermediateResults)
     {
         var groupingResults =  GetDistinctSingleGroupedRecordsThatChanged(accounts, intermediateResults).OrderBy(m=> m.GroupAccountId).ToList();
+        var x = groupingResults.GroupBy(m => m.AccountId).Where(m => m.Count() > 1).SelectMany(m => m).ToList();
         var resultsFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"GroupingResults-{DateTime.Now:yyyy-MM-dd_HH-mm-ss}.csv");
         await using var logger = new CsvLogger<GroupingResults>(resultsFile);
         await logger.AddEntriesAsync(groupingResults);
@@ -77,7 +79,7 @@ public class Program
         var bestAssignments = removeDuplicates
             .GroupBy(x => x.AccountId2)
             .Select(g =>
-                g.OrderByDescending(x => x.MatchPercentage)
+                g                                                                                                                                                                       .OrderByDescending(x => x.MatchPercentage)
                     .ThenByDescending(x => x.RoleCount)
                     .First());
         var mappedToFinalResults = bestAssignments.Select(m => new GroupingResults()
@@ -85,6 +87,8 @@ public class Program
                 GroupAccountId = m.AccountId1,
                 AccountId = m.AccountId2,
             });
+
+        
 
         var populatedWithData = mappedToFinalResults.Select(m =>
         {
@@ -99,13 +103,18 @@ public class Program
         var groupLeaders = populatedWithData
             .Select(m => m.GroupAccountId)
             .Distinct()
-            .Select(m => new GroupingResults()
+            .Select(m =>
             {
-                AccountId = m,
-                GroupAccountId = m,
-                Name = accountDict[m].Name,
-                Street = accountDict[m].BillingStreet,
-                IsGroupLeader = true
+                var account = accountDict[m];
+                return new GroupingResults()
+                {
+                    AccountId = m,
+                    GroupAccountId = m,
+                    Name = account.Name,
+                    Street = account.BillingStreet,
+                    IsGroupLeader = true,
+                    NPI = account.NPI
+                };
             }).ToList();
         
         populatedWithData.AddRange(groupLeaders);
@@ -113,7 +122,6 @@ public class Program
         var nonGroupLeaderNpiRecords = populatedWithData.GroupBy(m => m.GroupAccountId)
             .Where(m => m.Any(g => !g.IsGroupLeader && !string.IsNullOrEmpty(g.NPI)))
             .ToList();
-        
         Console.WriteLine($"There are {nonGroupLeaderNpiRecords.Count} groups where the NPI account is not a leader");
         //NPI records should never be overwritten and instantly become the group leader
         List<string> forcedChangedGroupLeaderIds = [];
@@ -129,7 +137,6 @@ public class Program
                 member.GroupAccountId = forcedLeader.AccountId;
             }
             forcedChangedGroupLeaderIds.Add(forcedLeader.AccountId);
-            
 
         }
         var changedResultsOnly = populatedWithData.Where(m =>
@@ -137,7 +144,8 @@ public class Program
             var account = accountDict[m.GroupAccountId];
             return account.Name != m.Name || account.BillingStreet != m.Street;
         }).ToList();
-        
+
+        var list = changedResultsOnly.GroupBy(m => m.AccountId).Where(m => m.Count() > 1).SelectMany(m => m).ToList();
         // need to add back group leaders because the diff removed them
         var addBackInGroupLeaders = changedResultsOnly.Select(m => m.GroupAccountId)
             .Distinct()
@@ -157,7 +165,12 @@ public class Program
             }).ToList();
 
         changedResultsOnly.AddRange(addBackInGroupLeaders);
-
-        return changedResultsOnly;
+        
+        var dedupeAgain = changedResultsOnly
+            .GroupBy(x => x.AccountId)
+            .Select(g => g .First())
+            .ToList();
+        
+        return dedupeAgain;
     }
 }
