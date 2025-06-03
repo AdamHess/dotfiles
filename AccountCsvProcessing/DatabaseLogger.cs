@@ -1,28 +1,21 @@
-using System.Globalization;
-using System.Threading.Channels;
-using CsvHelper;
+﻿using System.Threading.Channels;
+using Microsoft.EntityFrameworkCore;
 
 namespace CsvProcessing;
 
-public class CsvLogger<T> : IBatchLogger<T>
+public class DbLogger<T> : IBatchLogger<T> where T : class
 {
     private readonly Channel<T> _channel;
     private readonly Task _backgroundWriterTask;
-    private readonly StreamWriter _writer;
-    private readonly CsvWriter _csvWriter;
     private readonly CancellationTokenSource _cts = new();
 
     private const int FlushThreshold = 300;
     private const int FlushIntervalMs = 2000;
+    private readonly Func<DbContext> _contextFactory;
 
-    public CsvLogger(string filePath)
+    public DbLogger(Func<DbContext> contextFactory)
     {
-        _writer = new StreamWriter(filePath, append: true); // Change to `append: true` for periodic writes
-        _csvWriter = new CsvWriter(_writer, CultureInfo.InvariantCulture);
-        _csvWriter.WriteHeader<T>();
-        _csvWriter.NextRecord();
-        _csvWriter.Flush();  // Flush to start writing
-
+        _contextFactory = contextFactory ?? throw new ArgumentNullException(nameof(contextFactory));
         _channel = Channel.CreateUnbounded<T>(new UnboundedChannelOptions
         {
             SingleReader = true,
@@ -36,6 +29,7 @@ public class CsvLogger<T> : IBatchLogger<T>
     {
         await _channel.Writer.WriteAsync(entry);
     }
+
     public async Task AddEntriesAsync(IEnumerable<T> entries)
     {
         foreach (var entry in entries)
@@ -53,20 +47,17 @@ public class CsvLogger<T> : IBatchLogger<T>
         {
             while (await timer.WaitForNextTickAsync(_cts.Token) || buffer.Count > 0)
             {
-                // Try to fill buffer if there's space
                 while (buffer.Count < FlushThreshold && _channel.Reader.TryRead(out var item))
                 {
                     buffer.Add(item);
                 }
 
-                // If we have enough data, or if we timed out, flush to file
                 if (buffer.Count > 0)
                 {
-                    Console.WriteLine($"Records written this interval: {buffer.Count}");
+                    Console.WriteLine($"DB records written this interval: {buffer.Count}");
                     await FlushBufferAsync(buffer);
                 }
 
-                // If channel is completed and empty, break out of the loop
                 if (_channel.Reader.Completion.IsCompleted && _channel.Reader.Count == 0)
                     break;
             }
@@ -74,7 +65,6 @@ public class CsvLogger<T> : IBatchLogger<T>
         catch (OperationCanceledException) { }
         finally
         {
-            // Final flush, if any records are left
             while (_channel.Reader.TryRead(out var item))
                 buffer.Add(item);
 
@@ -85,19 +75,17 @@ public class CsvLogger<T> : IBatchLogger<T>
 
     private async Task FlushBufferAsync(List<T> buffer)
     {
-        await _csvWriter.WriteRecordsAsync(buffer);
-        await _csvWriter.FlushAsync();
+        await using var context = _contextFactory();
+        context.Set<T>().AddRange(buffer);
+        await context.SaveChangesAsync();
         buffer.Clear();
     }
 
     public async ValueTask DisposeAsync()
     {
-        await _cts.CancelAsync(); // Stop the timer
-        _channel.Writer.Complete(); // Signal no more entries
-        await _backgroundWriterTask; // Wait for flush to finish
-
-        await _csvWriter.DisposeAsync();
-        await _writer.DisposeAsync();
+        await _cts.CancelAsync();
+        _channel.Writer.Complete();
+        await _backgroundWriterTask;
         _cts.Dispose();
         GC.SuppressFinalize(this);
     }

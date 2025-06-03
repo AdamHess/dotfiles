@@ -1,20 +1,30 @@
+using AccountDeduplication.DAL;
+using MethodTimer;
+using Microsoft.EntityFrameworkCore;
+
 namespace CsvProcessing;
 
 public class Program
 {
 
-
+    [Time]
     public static async Task Main()
     {
+        await InitializeDb();
         var inputFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Account.csv");
-        var intermediateFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"IntermediateResults-{DateTime.Now:yyyy-MM-dd_HH-mm-ss}.csv");
+        
         var accounts = CsvBinder.LoadCsv<AccountCsvModel>(inputFile);
-        var calculator = new MatchCalculator(intermediateFile);
-        Console.WriteLine($"Intermediate files: {intermediateFile}");
-        var intermediateResults = await calculator.Execute(accounts);
-        var intermediateResults = CsvBinder.LoadCsv<IntermediateResults>(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "IntermediateResults.csv"));
+        await using var logger = new DbLogger<MatchRate>(() => new AccountDedupeDb());
+        var calculator = new MatchCalculator();
+        var intermediateResults = await calculator.Execute(accounts, logger);
         var groupingResults = await ProcessAndLogGroupingResults(accounts, intermediateResults);
         await GenerateDataloadFile(accounts, groupingResults);
+    }
+    [Time]
+    private static async Task InitializeDb()
+    {
+        await using var db = new AccountDedupeDb();
+        await db.Database.MigrateAsync();
     }
 
 
@@ -48,7 +58,7 @@ public class Program
         
     }
 
-    private static async Task<List<GroupingResults>> ProcessAndLogGroupingResults(List<AccountCsvModel> accounts, List<IntermediateResults> intermediateResults)
+    private static async Task<List<GroupingResults>> ProcessAndLogGroupingResults(List<AccountCsvModel> accounts, List<MatchRate> intermediateResults)
     {
         var groupingResults =  GetDistinctSingleGroupedRecordsThatChanged(accounts, intermediateResults).OrderBy(m=> m.GroupAccountId).ToList();
         var x = groupingResults.GroupBy(m => m.AccountId).Where(m => m.Count() > 1).SelectMany(m => m).ToList();
@@ -69,7 +79,7 @@ public class Program
     /// <param name="accounts"></param>
     /// <param name="intermediateResults"></param>
     /// <returns></returns>
-    public static List<GroupingResults> GetDistinctSingleGroupedRecordsThatChanged(List<AccountCsvModel> accounts, List<IntermediateResults> intermediateResults)
+    public static List<GroupingResults> GetDistinctSingleGroupedRecordsThatChanged(List<AccountCsvModel> accounts, List<MatchRate> intermediateResults)
     {
         var accountDict = accounts.ToDictionary(m => m.Id);
         var removeDuplicates = intermediateResults            
@@ -77,10 +87,12 @@ public class Program
         
         //if it appears in two groups get the best mach 
         var bestAssignments = removeDuplicates
+            .Where(m => 0.4* m.NameMatch + 0.6* m.ShippingAddressMatch > 0.85)
             .GroupBy(x => x.AccountId2)
             .Select(g =>
-                g                                                                                                                                                                       .OrderByDescending(x => x.MatchPercentage)
-                    .ThenByDescending(x => x.RoleCount)
+                g                                                                                                                                                                       
+                    .OrderBy(m => 0.4* m.NameMatch + 0.6* m.ShippingAddressMatch)
+                    .ThenByDescending(x => x.Account1RoleCount)
                     .First());
         var mappedToFinalResults = bestAssignments.Select(m => new GroupingResults()
             {
