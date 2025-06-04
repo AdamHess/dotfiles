@@ -2,7 +2,7 @@ using System.Globalization;
 using System.Threading.Channels;
 using CsvHelper;
 
-namespace CsvProcessing;
+namespace AccountDeduplication.RecordLoggers;
 
 public class CsvLogger<T> : IBatchLogger<T>
 {

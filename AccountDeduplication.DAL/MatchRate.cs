@@ -3,7 +3,6 @@
     public class MatchRate
     {
         private const double MinimumPassValue = 0.65;
-        public Guid Id { get; set; } = Guid.NewGuid();
         public string AccountId1 { get; set; }
         
         public string AccountId2 { get; set; }

@@ -10,18 +10,18 @@ public static class TokenSetSimilarity
         var tokens1 = Tokenize(s1);
         var tokens2 = Tokenize(s2);
 
-        var intersection = new HashSet<string>(tokens1);
-        intersection.IntersectWith(tokens2);
+        var set1 = new HashSet<string>(tokens1);
+        var set2 = new HashSet<string>(tokens2);
 
-        var diff1 = new HashSet<string>(tokens1);
-        diff1.ExceptWith(intersection);
+        var intersection = new HashSet<string>(set1);
+        intersection.IntersectWith(set2);
 
-        var diff2 = new HashSet<string>(tokens2);
-        diff2.ExceptWith(intersection);
+        set1.ExceptWith(intersection);
+        set2.ExceptWith(intersection);
 
         var sortedInter = JoinSorted(intersection);
-        var sorted1 = JoinSorted(intersection.Concat(diff1));
-        var sorted2 = JoinSorted(intersection.Concat(diff2));
+        var sorted1 = JoinSorted(intersection.Concat(set1));
+        var sorted2 = JoinSorted(intersection.Concat(set2));
 
         int ratio1 = Ratio(sortedInter, sorted1);
         int ratio2 = Ratio(sortedInter, sorted2);
@@ -126,7 +126,6 @@ public static class TokenSetSimilarity
 
         return row0[lenT];
     }
-    
     public static unsafe int LevenshteinUnsafe(string s, string t)
     {
         int lenS = s.Length;
@@ -141,16 +140,14 @@ public static class TokenSetSimilarity
         for (int j = 0; j <= lenT; j++)
             prev[j] = j;
 
-        for (int i = 1; i <= lenS; i++)
+        for (int i = 0; i < lenS; i++)
         {
-            curr[0] = i;
-            for (int j = 1; j <= lenT; j++)
+            curr[0] = i + 1;
+            char sChar = s[i]; // Cache current character for faster access
+            for (int j = 0; j < lenT; j++)
             {
-                int cost = s[i - 1] == t[j - 1] ? 0 : 1;
-                int insert = curr[j - 1] + 1;
-                int delete = prev[j] + 1;
-                int replace = prev[j - 1] + cost;
-                curr[j] = Math.Min(Math.Min(insert, delete), replace);
+                int cost = sChar == t[j] ? 0 : 1; // Avoid redundant indexing
+                curr[j + 1] = Math.Min(Math.Min(curr[j] + 1, prev[j + 1] + 1), prev[j] + cost);
             }
             var temp = prev;
             prev = curr;

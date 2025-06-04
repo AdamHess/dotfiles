@@ -1,7 +1,8 @@
 ﻿using System.Threading.Channels;
+using EFCore.BulkExtensions;
 using Microsoft.EntityFrameworkCore;
 
-namespace CsvProcessing;
+namespace AccountDeduplication.RecordLoggers;
 
 public class DbLogger<T> : IBatchLogger<T> where T : class
 {
@@ -54,7 +55,7 @@ public class DbLogger<T> : IBatchLogger<T> where T : class
 
                 if (buffer.Count > 0)
                 {
-                    Console.WriteLine($"DB records written this interval: {buffer.Count}");
+                    Console.WriteLine("*");
                     await FlushBufferAsync(buffer);
                 }
 
@@ -76,8 +77,7 @@ public class DbLogger<T> : IBatchLogger<T> where T : class
     private async Task FlushBufferAsync(List<T> buffer)
     {
         await using var context = _contextFactory();
-        context.Set<T>().AddRange(buffer);
-        await context.SaveChangesAsync();
+        await context.BulkInsertOrUpdateAsync(buffer);
         buffer.Clear();
     }
 

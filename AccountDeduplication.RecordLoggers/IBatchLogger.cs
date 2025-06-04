@@ -1,4 +1,4 @@
-﻿namespace CsvProcessing;
+﻿namespace AccountDeduplication.RecordLoggers;
 
 public interface IBatchLogger<T> : IAsyncDisposable
 {

@@ -1,4 +1,4 @@
-namespace CsvProcessing;
+namespace AccountDeduplication.CsvModels;
 
 public class DataLoadModel
 {

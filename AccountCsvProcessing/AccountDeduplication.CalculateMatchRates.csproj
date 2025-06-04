@@ -14,14 +14,17 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="CsvHelper" Version="33.0.1" />
+        <PackageReference Include="CsvHelper" Version="33.1.0" />
         <PackageReference Include="FuzzySharp" Version="2.0.2" />
         <PackageReference Include="MethodTimer.Fody" Version="3.2.3" />
         <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.5" />
+        <PackageReference Include="Phonix" Version="1.0.2" />
     </ItemGroup>
 
     <ItemGroup>
       <ProjectReference Include="..\AccountDeduplication.DAL\AccountDeduplication.DAL.csproj" />
+      <ProjectReference Include="..\AccountDeduplication.Models\AccountDeduplication.CsvModels.csproj" />
+      <ProjectReference Include="..\AccountDeduplication.RecordLoggers\AccountDeduplication.RecordLoggers.csproj" />
     </ItemGroup>
 
     <ItemGroup>

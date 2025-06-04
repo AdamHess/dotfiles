@@ -3,9 +3,15 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.13.35931.197 d17.13
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AccountCsvProcessing", "AccountCsvProcessing\AccountCsvProcessing.csproj", "{02D4A606-F565-4ECB-A6C2-70C65C342EED}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AccountDeduplication.CalculateMatchRates", "AccountCsvProcessing\AccountDeduplication.CalculateMatchRates.csproj", "{02D4A606-F565-4ECB-A6C2-70C65C342EED}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AccountDeduplication.DAL", "AccountDeduplication.DAL\AccountDeduplication.DAL.csproj", "{0F75AEDE-0A12-45F6-B0C3-FC7135E35AAA}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AccountDeduplication.ProcessResults", "AccountDeduplication.ProcessResults\AccountDeduplication.ProcessResults.csproj", "{C6E52A74-0866-4784-9FB0-F8054BB1EB60}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AccountDeduplication.RecordLoggers", "AccountDeduplication.RecordLoggers\AccountDeduplication.RecordLoggers.csproj", "{8FC86198-E7A5-43B6-B7C0-11EDDE3D676B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AccountDeduplication.CsvModels", "AccountDeduplication.Models\AccountDeduplication.CsvModels.csproj", "{7EB1430A-FB6C-4A93-BF36-F26D36558609}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -21,8 +27,23 @@ Global
 		{0F75AEDE-0A12-45F6-B0C3-FC7135E35AAA}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{0F75AEDE-0A12-45F6-B0C3-FC7135E35AAA}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{0F75AEDE-0A12-45F6-B0C3-FC7135E35AAA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C6E52A74-0866-4784-9FB0-F8054BB1EB60}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C6E52A74-0866-4784-9FB0-F8054BB1EB60}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C6E52A74-0866-4784-9FB0-F8054BB1EB60}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C6E52A74-0866-4784-9FB0-F8054BB1EB60}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8FC86198-E7A5-43B6-B7C0-11EDDE3D676B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8FC86198-E7A5-43B6-B7C0-11EDDE3D676B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8FC86198-E7A5-43B6-B7C0-11EDDE3D676B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8FC86198-E7A5-43B6-B7C0-11EDDE3D676B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7EB1430A-FB6C-4A93-BF36-F26D36558609}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7EB1430A-FB6C-4A93-BF36-F26D36558609}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7EB1430A-FB6C-4A93-BF36-F26D36558609}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7EB1430A-FB6C-4A93-BF36-F26D36558609}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {4580A466-8F81-46C3-922C-16621F420539}
 	EndGlobalSection
 EndGlobal

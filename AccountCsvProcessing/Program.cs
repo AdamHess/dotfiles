@@ -1,4 +1,11 @@
+using System.Globalization;
+using System.Security.AccessControl;
+using AccountDeduplication.CsvModels;
 using AccountDeduplication.DAL;
+using AccountDeduplication.RecordLoggers;
+using CsvHelper;
+using CsvHelper.Configuration;
+using EFCore.BulkExtensions;
 using MethodTimer;
 using Microsoft.EntityFrameworkCore;
 
@@ -6,21 +13,68 @@ namespace CsvProcessing;
 
 public class Program
 {
-
-    [Time]
     public static async Task Main()
+    {
+        
+        var accounts = await LoadAccountsFromDb();
+        var logger = new DbLogger<MatchRate>(() => new AccountDedupeDb());
+        var matchCalculator = new MatchCalculator();
+        Console.WriteLine("Starting Calculator");
+        await matchCalculator.ExecuteAsync(accounts, logger);
+
+
+
+    }
+
+    private static async Task<List<Account>> LoadAccountsFromDb()
+    {
+        Console.WriteLine("Loading Accounts from DB");
+        await using var db = new AccountDedupeDb();
+        var accounts = await db.Accounts.Where(m => !string.IsNullOrWhiteSpace(m.Grouping)).AsNoTracking().ToListAsync();
+        return accounts;
+    }
+
+
+    public static async Task Main1()
     {
         await InitializeDb();
         var inputFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Account.csv");
+        Console.WriteLine("Loading Csv");
+        var accounts = CsvBinder.LoadCsv<Account>(inputFile);
+        Console.WriteLine("Assigning Group Key");
+        foreach (var account in accounts)
+        {
+         account.Grouping = CityStateBlocker.GetGroupingKey(account.BillingCity ?? account.ShippingCity, account.BillingState ?? account.ShippingState);
+        }
+        Console.WriteLine("Save to Db");
+        await SaveOrUpdateAccountsToDb(accounts);
         
-        var accounts = CsvBinder.LoadCsv<AccountCsvModel>(inputFile);
-        await using var logger = new DbLogger<MatchRate>(() => new AccountDedupeDb());
-        var calculator = new MatchCalculator();
-        var intermediateResults = await calculator.Execute(accounts, logger);
-        var groupingResults = await ProcessAndLogGroupingResults(accounts, intermediateResults);
-        await GenerateDataloadFile(accounts, groupingResults);
+        
+
     }
-    [Time]
+
+    private static List<AccountDeduplication.DAL.Account> LoadAccounts(string inputFile)
+    {
+        var config = new CsvConfiguration(CultureInfo.InvariantCulture)
+        {
+            MissingFieldFound = null,  // Ignore missing columns instead of throwing
+        };
+
+        using var reader = new StreamReader("accounts.csv");
+        using var csv = new CsvReader(reader, config);
+
+        csv.Context.RegisterClassMap<AccountCsvModelMap>();
+        return csv.GetRecords<AccountDeduplication.DAL.Account>().ToList();
+    }
+
+    private static async Task SaveOrUpdateAccountsToDb(List<Account> accounts)
+    {
+        await using var db = new AccountDedupeDb();
+
+        await db.BulkInsertOrUpdateAsync(accounts);
+    }
+
+    
     private static async Task InitializeDb()
     {
         await using var db = new AccountDedupeDb();
@@ -28,7 +82,7 @@ public class Program
     }
 
 
-    private static async Task GenerateDataloadFile(List<AccountCsvModel> accounts, List<GroupingResults> groupingResults)
+    private static async Task GenerateDataloadFile(List<Account> accounts, List<GroupingResults> groupingResults)
     {
         var accountDict = accounts.ToDictionary(m => m.Id);
 
@@ -58,7 +112,7 @@ public class Program
         
     }
 
-    private static async Task<List<GroupingResults>> ProcessAndLogGroupingResults(List<AccountCsvModel> accounts, List<MatchRate> intermediateResults)
+    private static async Task<List<GroupingResults>> ProcessAndLogGroupingResults(List<Account> accounts, List<MatchRate> intermediateResults)
     {
         var groupingResults =  GetDistinctSingleGroupedRecordsThatChanged(accounts, intermediateResults).OrderBy(m=> m.GroupAccountId).ToList();
         var x = groupingResults.GroupBy(m => m.AccountId).Where(m => m.Count() > 1).SelectMany(m => m).ToList();
@@ -79,7 +133,7 @@ public class Program
     /// <param name="accounts"></param>
     /// <param name="intermediateResults"></param>
     /// <returns></returns>
-    public static List<GroupingResults> GetDistinctSingleGroupedRecordsThatChanged(List<AccountCsvModel> accounts, List<MatchRate> intermediateResults)
+    public static List<GroupingResults> GetDistinctSingleGroupedRecordsThatChanged(List<Account> accounts, List<MatchRate> intermediateResults)
     {
         var accountDict = accounts.ToDictionary(m => m.Id);
         var removeDuplicates = intermediateResults            
