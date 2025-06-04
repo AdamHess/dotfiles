@@ -17,37 +17,68 @@ public class MatchCalculator
     private IBatchLogger<MatchRate> Logger { get; set; }
 
     private ConcurrentBag<MatchRate> Results { get; set; } = [];
-    public async Task<List<MatchRate>> ExecuteAsync(List<Account> accounts, IBatchLogger<MatchRate> logger)
+
+    private async Task<List<string>> GetProcessedGroups()
+    {
+        await using var db = new AccountDedupeDb();
+        return await db.ProcessingStatuses.Select(m => m.GroupId).ToListAsync();
+    }
+    public async Task<List<MatchRate>> ExecuteAsync(List<Account> accounts,
+        IBatchLogger<MatchRate> logger, 
+        IBatchLogger<ProcessingStatus> statusLogger)
     {
         Results = [];
         Logger = logger;
+        var processedGroups =await GetProcessedGroups();
+        var groups = accounts.GroupBy(a => a.Grouping)
+            .Where(m => m.Count() > 1 && !processedGroups.Contains(m.Key))
+            .OrderByDescending(m => m.Count())
+            .ToList();
+        
+        Console.WriteLine($"Total Groups: {groups.Count}, top 10");
+        for(var i = 0; i < 10; i++)
+        {
+            var group = groups[i];
+            Console.WriteLine($"{i}. {group.Key}: {group.Count()}");
+        }
 
-        var groups = accounts.GroupBy(a => a.Grouping).ToList();
-        int totalGroups = groups.Count;
-        int groupsProcessed = 0;
+        Console.WriteLine("Press Any Key To continue");
+        Console.ReadKey();
+            
+        groups.Reverse();
+        
+        var totalGroups = groups.Count;
+        var groupsProcessed = 0;
 
         await Parallel.ForEachAsync(
             groups,
-            new ParallelOptions { MaxDegreeOfParallelism = 8 }, // Tune as needed
+            new ParallelOptions { MaxDegreeOfParallelism = 16 }, // Tune as needed
             async (group, groupCancelToken) =>
             {
                 var groupList = group.ToList();
-                int count = groupList.Count;
+                var count = groupList.Count;
                 if (count < 2) return;
                 var groupStopwatch = Stopwatch.StartNew();
-
-                for (int i = 0; i < count; i++)
+                var processedGroup = new ProcessingStatus()
                 {
-                    var account1 = groupList[i];
-                    for (int j = i + 1; j < count; j++)
+                    AccountsInGroup = count,
+                    GroupId = group.Key,
+                    ProcessedAt = DateTime.UtcNow
+                };
+                for (var account1Index = 0; account1Index < count; account1Index++)
+                {
+                    var account1 = groupList[account1Index];
+                    for (var account2Index = account1Index + 1; account2Index < count; account2Index++)
                     {
-                        var account2 = groupList[j];
+                        var account2 = groupList[account2Index];
                         await ExecuteIndividualCompareAsync(account1, account2, groupCancelToken);
                     }
                 }
 
                 groupStopwatch.Stop();
                 int processed = Interlocked.Increment(ref groupsProcessed);
+                processedGroup.ProcessingTime = groupStopwatch.Elapsed;
+                await statusLogger.AddEntryAsync(processedGroup);
                 Console.WriteLine(
                     $"Completed processing group '{group.Key}' ({count} accounts). " +
                     $"Group {processed} of {totalGroups}. " +

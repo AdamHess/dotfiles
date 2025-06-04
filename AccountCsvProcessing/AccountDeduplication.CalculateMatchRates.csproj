@@ -6,7 +6,7 @@
         <LangVersion>latestmajor</LangVersion>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>disable</Nullable>
-		
+	    <!--<PublishAot>true</PublishAot>-->
         <InvariantGlobalization>true</InvariantGlobalization>
         <AssemblyName>CsvProcessing</AssemblyName>
         <RootNamespace>CsvProcessing</RootNamespace>

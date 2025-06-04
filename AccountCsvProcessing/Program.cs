@@ -15,15 +15,38 @@ public class Program
 {
     public static async Task Main()
     {
-        
+        Console.WriteLine("""
+                          Select from the following options:
+                          1. Process existing accounts stored in database
+                          2. Load account.csv into database
+                          """);
+        var input = Console.ReadKey();
+   
+        switch (input.KeyChar)
+        {
+            case '1':
+                await CalculateMatchPercentages();
+                break;
+            case '2':
+                await LoadDatabaseWithAccounts();
+                break;
+            default:
+                Console.WriteLine("Invalid input");
+                break;
+        }
+
+    }
+
+    private static async Task CalculateMatchPercentages()
+    {
         var accounts = await LoadAccountsFromDb();
-        var logger = new DbLogger<MatchRate>(() => new AccountDedupeDb());
+        var matchLogger = new DbLogger<MatchRate>(() => new AccountDedupeDb());
+        var statusLogger = new DbLogger<ProcessingStatus>(() => new AccountDedupeDb());
         var matchCalculator = new MatchCalculator();
         Console.WriteLine("Starting Calculator");
-        await matchCalculator.ExecuteAsync(accounts, logger);
-
-
-
+        await matchCalculator.ExecuteAsync(accounts,
+            matchLogger,
+            statusLogger);
     }
 
     private static async Task<List<Account>> LoadAccountsFromDb()
@@ -35,23 +58,18 @@ public class Program
     }
 
 
-    public static async Task Main1()
+    public static async Task LoadDatabaseWithAccounts()
     {
         await InitializeDb();
         var inputFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Account.csv");
         Console.WriteLine("Loading Csv");
         var accounts = CsvBinder.LoadCsv<Account>(inputFile);
         Console.WriteLine("Assigning Group Key");
-        foreach (var account in accounts)
-        {
-         account.Grouping = CityStateBlocker.GetGroupingKey(account.BillingCity ?? account.ShippingCity, account.BillingState ?? account.ShippingState);
-        }
+        AccountGroupAssigner.AssignGroupKeys(accounts);
         Console.WriteLine("Save to Db");
         await SaveOrUpdateAccountsToDb(accounts);
-        
-        
-
     }
+
 
     private static List<AccountDeduplication.DAL.Account> LoadAccounts(string inputFile)
     {

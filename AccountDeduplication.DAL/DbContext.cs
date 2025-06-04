@@ -13,6 +13,7 @@ namespace AccountDeduplication.DAL
         public DbSet<MatchRate> MatchRates { get; set; }
 
         public DbSet<Account> Accounts { get; set; }
+        public DbSet<ProcessingStatus> ProcessingStatuses { get; set; }
         public string DbPath { get; }
 
         public AccountDedupeDb(string filename = "MatchRate.db")
@@ -43,6 +44,11 @@ namespace AccountDeduplication.DAL
             .HasMaxLength(18)
             .IsRequired();
             
+            var ps = modelBuilder.Entity<ProcessingStatus>();
+            ps.HasKey(m => m.GroupId);
+            
+
+
 
 
         }

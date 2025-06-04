@@ -35,15 +35,19 @@ public static class CityStateBlocker
     // Final blocking key using both city and state
     public static string GetGroupingKey(string city, string state)
     {
-        if (city == null || state == null)
+        if (string.IsNullOrWhiteSpace(city) || string.IsNullOrWhiteSpace(state))
             return null;
-        var cityPhonetic = GetPhoneticCode(city);
-        var cityTokens = GetTokenSetKey(city);
 
-        var statePhonetic = GetPhoneticCode(state);
-        var stateTokens = GetTokenSetKey(state);
+        var cityPrefix = GetGroupingPair(city);
+        var stateSuffix = GetGroupingPair(state);
+        return $"{cityPrefix}__{stateSuffix}";
+    }
 
-        return $"{cityPhonetic}-{cityTokens}__{statePhonetic}-{stateTokens}";
+    public static string GetGroupingPair(string toPair)
+    {
+        var cityPhonetic = GetPhoneticCode(toPair);
+        var cityTokens = GetTokenSetKey(toPair);
+        return $"{cityPhonetic}-{cityTokens}";
     }
 
 
