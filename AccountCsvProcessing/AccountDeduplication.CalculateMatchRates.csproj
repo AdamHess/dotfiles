@@ -8,8 +8,7 @@
         <Nullable>disable</Nullable>
 	    <!--<PublishAot>true</PublishAot>-->
         <InvariantGlobalization>true</InvariantGlobalization>
-        <AssemblyName>CsvProcessing</AssemblyName>
-        <RootNamespace>CsvProcessing</RootNamespace>
+        <AssemblyName>AccountDeduplication.CalculateMatchRates</AssemblyName>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     </PropertyGroup>
 

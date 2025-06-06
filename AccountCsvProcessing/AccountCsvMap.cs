@@ -1,7 +1,6 @@
-﻿using AccountDeduplication.DAL;
-using CsvHelper.Configuration;
+﻿using CsvHelper.Configuration;
 
-namespace CsvProcessing;
+namespace AccountDeduplication.CalculateMatchRates;
 
 public class AccountCsvModelMap : ClassMap<AccountDeduplication.DAL.Account>
 {

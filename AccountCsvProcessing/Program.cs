@@ -1,15 +1,13 @@
 using System.Globalization;
-using System.Security.AccessControl;
 using AccountDeduplication.CsvModels;
 using AccountDeduplication.DAL;
 using AccountDeduplication.RecordLoggers;
 using CsvHelper;
 using CsvHelper.Configuration;
 using EFCore.BulkExtensions;
-using MethodTimer;
 using Microsoft.EntityFrameworkCore;
 
-namespace CsvProcessing;
+namespace AccountDeduplication.CalculateMatchRates;
 
 public class Program
 {

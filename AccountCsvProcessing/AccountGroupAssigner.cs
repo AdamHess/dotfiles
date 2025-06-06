@@ -1,11 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using AccountDeduplication.DAL;
+﻿using AccountDeduplication.DAL;
 
-namespace CsvProcessing
+namespace AccountDeduplication.CalculateMatchRates
 {
     public static class AccountGroupAssigner
     {

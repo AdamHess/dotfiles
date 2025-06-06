@@ -1,4 +1,4 @@
-namespace CsvProcessing;
+namespace AccountDeduplication.CalculateMatchRates;
 
 public static class TokenSetSimilarity
 {

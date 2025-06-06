@@ -4,17 +4,24 @@ using AccountDeduplication.DAL;
 using AccountDeduplication.RecordLoggers;
 using Microsoft.EntityFrameworkCore;
 
-namespace CsvProcessing;
+namespace AccountDeduplication.CalculateMatchRates;
 
 public class MatchCalculator
 {
     private IBatchLogger<MatchRate> Logger { get; set; }
     private static int _groupsProcessed;
+    private static Random _random = new Random();
 
     private static async Task<List<string>> GetProcessedGroups()
     {
         await using var db = new AccountDedupeDb();
         return await db.ProcessingStatuses.Select(m => m.GroupId).ToListAsync();
+    }
+
+    private static async Task<bool> AlreadyProcessed(string groupKey)
+    {
+        await using var db = new AccountDedupeDb();
+        return await db.ProcessingStatuses.AnyAsync(m => m.GroupId == groupKey);
     }
 
     public async Task ExecuteAsync(
@@ -32,7 +39,8 @@ public class MatchCalculator
         Console.WriteLine("Press Any Key To continue");
         Console.ReadKey();
 
-        groups.Reverse();
+        // Shuffle the groups randomly instead of reversing them
+        groups = groups.OrderBy(_ => _random.Next()).ToList();
 
         var totalGroups = groups.Count;
 
@@ -165,6 +173,7 @@ public class MatchCalculator
     {
         foreach (var group in groups)
         {
+            if (await AlreadyProcessed(group.Key)) continue;
             var groupList = group.ToList();
             int count = groupList.Count;
             if (count < 2) continue;
@@ -185,9 +194,11 @@ public class MatchCalculator
     {
         var nameMatch = TokenSetSimilarity.TokenSetRatio(account1.Name, account2.Name) / 100.0;
         var billingAddressMatch =
-            TokenSetSimilarity.TokenSetRatio(account1.BillingStreet, account2.BillingStreet) / 100.0;
+            TokenSetSimilarity.TokenSetRatio(AddressParser.NormalizeAddress(account1.BillingStreet),
+                AddressParser.NormalizeAddress(account2.BillingStreet)) / 100.0;
         var shippingAddressMatch =
-            TokenSetSimilarity.TokenSetRatio(account1.ShippingStreet, account2.ShippingStreet) / 100.0;
+            TokenSetSimilarity.TokenSetRatio(AddressParser.NormalizeAddress(account1.ShippingStreet),
+                AddressParser.NormalizeAddress(account2.ShippingStreet)) / 100.0;
         var otherNameMatch = TokenSetSimilarity.TokenSetRatio(account1.OtherOrgName, account2.OtherOrgName) / 100.0;
         return new MatchRate()
         {

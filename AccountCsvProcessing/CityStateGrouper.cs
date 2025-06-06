@@ -1,7 +1,7 @@
 ﻿using System.Text.RegularExpressions;
 using Phonix;
 
-namespace CsvProcessing;
+namespace AccountDeduplication.CalculateMatchRates;
 
 public static class CityStateBlocker
 {
