@@ -24,11 +24,11 @@ public static class CityStateBlocker
     // Token set hash: sort, deduplicate
     public static string GetTokenSetKey(string input)
     {
-        var tokens = Regex.Matches(input.ToLowerInvariant(), "[a-z]+")
+        var tokens = Regex.Matches(input.ToLowerInvariant(), "[a-z]")
             .Cast<Match>()
             .Select(m => m.Value)
             .Distinct()
-            .OrderBy(x => x);
+            .OrderBy(x => x).ToList();
         return string.Join("", tokens);
     }
 

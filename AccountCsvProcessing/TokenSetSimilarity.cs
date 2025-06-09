@@ -7,8 +7,8 @@ public static class TokenSetSimilarity
         if (string.IsNullOrWhiteSpace(s1) || string.IsNullOrWhiteSpace(s2))
             return 0;
 
-        var tokens1 = Tokenize(s1);
-        var tokens2 = Tokenize(s2);
+        var tokens1 = Tokenize(s1.ToLowerInvariant());
+        var tokens2 = Tokenize(s2.ToLowerInvariant());
 
         var set1 = new HashSet<string>(tokens1);
         var set2 = new HashSet<string>(tokens2);
