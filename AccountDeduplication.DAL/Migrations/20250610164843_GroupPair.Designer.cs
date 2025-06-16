@@ -3,6 +3,7 @@ using System;
 using AccountDeduplication.DAL;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace AccountDeduplication.DAL.Migrations
 {
     [DbContext(typeof(AccountDedupeDb))]
-    partial class AccountDedupeDbModelSnapshot : ModelSnapshot
+    [Migration("20250610164843_GroupPair")]
+    partial class GroupPair
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "9.0.5");
@@ -117,8 +120,6 @@ namespace AccountDeduplication.DAL.Migrations
 
                     b.HasKey("AccountId1", "AccountId2");
 
-                    b.HasIndex("AccountId2");
-
                     b.ToTable("MatchRates");
                 });
 
@@ -156,25 +157,6 @@ namespace AccountDeduplication.DAL.Migrations
                     b.Navigation("Account");
 
                     b.Navigation("GroupAccount");
-                });
-
-            modelBuilder.Entity("AccountDeduplication.DAL.MatchRate", b =>
-                {
-                    b.HasOne("AccountDeduplication.DAL.Account", "Account1")
-                        .WithMany()
-                        .HasForeignKey("AccountId1")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("AccountDeduplication.DAL.Account", "Account2")
-                        .WithMany()
-                        .HasForeignKey("AccountId2")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Account1");
-
-                    b.Navigation("Account2");
                 });
 
             modelBuilder.Entity("AccountDeduplication.DAL.Account", b =>

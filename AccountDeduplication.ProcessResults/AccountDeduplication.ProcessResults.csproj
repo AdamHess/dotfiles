@@ -4,18 +4,25 @@
     <OutputType>Exe</OutputType>
     <TargetFramework>net9.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
+    <Nullable>disable</Nullable>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\AccountDeduplication.DAL\AccountDeduplication.DAL.csproj" />
     <ProjectReference Include="..\AccountDeduplication.Models\AccountDeduplication.CsvModels.csproj" />
+    <ProjectReference Include="..\AccountDeduplication.RecordLoggers\AccountDeduplication.RecordLoggers.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <None Update="Account.csv">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+    <None Update="MatchRate.db">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
+	<PropertyGroup>
+		<NoWarn>$(NoWarn);IDE0305</NoWarn>
+	</PropertyGroup>
 
 </Project>

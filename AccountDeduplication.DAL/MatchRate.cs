@@ -1,4 +1,6 @@
-﻿namespace AccountDeduplication.DAL
+﻿using System.ComponentModel.DataAnnotations.Schema;
+
+namespace AccountDeduplication.DAL
 {
     public class MatchRate
     {
@@ -15,6 +17,13 @@
 
         public int Account1RoleCount { get; set; }
         public int Account2RoleCount { get; set; }
+        
+        [ForeignKey(nameof(AccountId1))]
+        public Account Account1 { get; set; }
+        
+        [ForeignKey(nameof(AccountId2))]
+        public Account Account2 { get; set; }
+
         
         public bool AllNonZeroRecordsGreaterThanMinimumThreshold =>
             (BillingStreetMatch != 0 || ShippingAddressMatch != 0 || NameMatch != 0 || OtherNameMatch != 0) &&

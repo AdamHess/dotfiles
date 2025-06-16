@@ -32,7 +32,7 @@ namespace AccountDeduplication.CalculateMatchRates
                 .GroupBy(m => m.Grouping)
                 .Select(m => new
                 {
-                    Key = m.Key,
+                    m.Key,
                     Count = m.Count()
                 })
                 .OrderByDescending(m => m.Count)

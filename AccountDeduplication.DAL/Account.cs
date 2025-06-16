@@ -26,5 +26,7 @@ public class Account
     public string BillingCity { get; set; }
     
     public string Grouping { get; set; }
+    
+    public IList<GroupPair> GroupPairs { get; set; } = new List<GroupPair>();
 
 }
