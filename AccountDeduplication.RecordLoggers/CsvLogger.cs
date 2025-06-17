@@ -1,6 +1,6 @@
+using CsvHelper;
 using System.Globalization;
 using System.Threading.Channels;
-using CsvHelper;
 
 namespace AccountDeduplication.RecordLoggers;
 
@@ -17,7 +17,7 @@ public class CsvLogger<T> : IBatchLogger<T>
 
     public CsvLogger(string filePath)
     {
-        _writer = new StreamWriter(filePath, append: true); // Change to `append: true` for periodic writes
+        _writer = new StreamWriter(filePath, append: false); // Change to `append: true` for periodic writes
         _csvWriter = new CsvWriter(_writer, CultureInfo.InvariantCulture);
         _csvWriter.WriteHeader<T>();
         _csvWriter.NextRecord();
