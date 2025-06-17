@@ -10,9 +10,23 @@ namespace AccountDeduplication.ProcessResults
         static async Task Main()
         {
             InitDatabase();
-            var phase1Results = await Phase1();
-            await using CsvLogger<GroupingResults> csvLogger = new($"Phase1Results-{DateTime.Now.ToFileTime()}.csv");
-            await csvLogger.AddEntriesAsync(phase1Results.SelectMany(p =>
+            var allMatchRates = await GetMatchRatesForGroupingKey("LNKT-dglnow__FL-fl");
+            var phase1Results = Phase1(allMatchRates);
+            var fileTime = DateTime.Now.ToFileTime();
+            await SaveResultsToFile($"Phase1Results-{fileTime}.csv", phase1Results);
+            var phase2 = Phase2(allMatchRates, phase1Results);
+            await SaveResultsToFile($"Phase2Results-{fileTime}.csv", phase2);
+            var phase3 = Phase3(allMatchRates, phase2);
+            await SaveResultsToFile($"Phase3Results-{fileTime}.csv", phase3);
+            var phase4 = Phase4(allMatchRates, phase3);
+            await SaveResultsToFile($"Phase4Results-{fileTime}.csv", phase4);
+
+        }
+
+        private static async Task SaveResultsToFile(string fileName, List<GroupMapping> groupingResults)
+        {
+            await using CsvLogger<GroupingResults> csvLogger = new(fileName);
+            await csvLogger.AddEntriesAsync(groupingResults.SelectMany(p =>
                 p.GroupMembers
                     .Select(gm => new GroupingResults()
                     {
@@ -23,7 +37,19 @@ namespace AccountDeduplication.ProcessResults
                         IsGroupLeader = p.GroupLeader.Id == gm.Id,
                         NPI = gm.NPI
                     })));
+        }
 
+        private static List<GroupMapping> Phase2(List<MatchRate> allMatchRates, List<GroupMapping> phase1Results)
+        {
+            return PhaseN(allMatchRates, phase1Results, Phase2Criterion);
+        }
+        private static List<GroupMapping> Phase3(List<MatchRate> allMatchRates, List<GroupMapping> phase1Results)
+        {
+            return PhaseN(allMatchRates, phase1Results, Phase3Criterion);
+        }
+        private static List<GroupMapping> Phase4(List<MatchRate> allMatchRates, List<GroupMapping> phase1Results)
+        {
+            return PhaseN(allMatchRates, phase1Results, Phase4Criterion);
         }
 
         private static void InitDatabase()
@@ -32,12 +58,51 @@ namespace AccountDeduplication.ProcessResults
             db.Database.Migrate();
         }
 
-        private static async Task<List<GroupMapping>> Phase1()
+        private static List<GroupMapping> Phase1(List<MatchRate> allMatchRates)
         {
-            var allMatchRates = await GetMatchRatesForGroupingKey("LNKT-dglnow__FL-fl");
 
             return GroupingAlgorithm(allMatchRates, Phase1Criterion);
         }
+
+
+        private static List<GroupMapping> PhaseN(List<MatchRate> allMatchRates,
+            List<GroupMapping> phaseNLastResults,
+            Func<MatchRate, double> matchCalculatingCriterion)
+        {
+            var leaders = phaseNLastResults.Select(m => m.GroupLeader).Select(m => m.Id).ToList();
+            //get all the match rates only for the leaders since we only care about grouping them. 
+            var filterMatchRates = allMatchRates.Where(m => leaders.Contains(m.AccountId1) && leaders.Contains(m.AccountId2))
+                .ToList();
+            var leaderGrouping = GroupingAlgorithm(filterMatchRates, matchCalculatingCriterion);
+            List<GroupMapping> phase2Results = [];
+            foreach (var group in leaderGrouping)
+            {
+                var groupLeaderGroup = phaseNLastResults.First(m => m.GroupLeader.Id == group.GroupLeader.Id);
+                foreach (var groupMember in leaderGrouping)
+                {
+                    var groupMemberGroup = phaseNLastResults.First(m => m.GroupLeader.Id == groupMember.GroupLeader.Id);
+                    phase2Results.Add(new GroupMapping()
+                    {
+                        GroupLeader = group.GroupLeader,
+                        GroupMembers = [.. groupMember.GroupMembers] //should also include group leader in this group
+                    });
+                }
+            }
+
+
+            Console.WriteLine(
+                $"Total numbers remapped in this phase: {leaderGrouping.Sum(m => m.GroupMembers.Count) - leaderGrouping.Count}");
+            var idsOfReGroupedGroups = leaderGrouping.SelectMany(m => m.GroupMembers).Select(m => m.Id).ToList();
+            phase2Results.AddRange(phaseNLastResults.Where(m =>
+                !idsOfReGroupedGroups.Contains(m.GroupLeader
+                    .Id))); //add all the groups to the new list to return (that havent been merged)
+
+
+            return phase2Results;
+
+        }
+
+
 
         private static async Task<List<MatchRate>> GetMatchRatesForGroupingKey(string groupingKey)
         {
@@ -172,7 +237,21 @@ namespace AccountDeduplication.ProcessResults
 
         public static double Phase1Criterion(MatchRate matchRate)
         {
+            return 0.4 * matchRate.NameMatch + 0.6 * matchRate.BillingStreetMatch;
+        }
+        private static double Phase2Criterion(MatchRate matchRate)
+        {
             return 0.4 * matchRate.NameMatch + 0.6 * matchRate.ShippingAddressMatch;
         }
+
+        private static double Phase3Criterion(MatchRate matchRate)
+        {
+            return 0.4 * matchRate.OtherNameMatch + 0.6 * matchRate.BillingStreetMatch;
+        }
+        private static double Phase4Criterion(MatchRate matchRate)
+        {
+            return 0.4 * matchRate.OtherNameMatch + 0.6 * matchRate.ShippingAddressMatch;
+        }
+
     }
 }
