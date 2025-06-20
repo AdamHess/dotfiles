@@ -1,5 +1,6 @@
 ﻿using AccountDeduplication.CsvModels;
-using AccountDeduplication.DAL;
+using AccountDeduplication.DAL.EF;
+using AccountDeduplication.DAL.Models;
 using AccountDeduplication.RecordLoggers;
 using Microsoft.EntityFrameworkCore;
 
@@ -86,7 +87,7 @@ namespace AccountDeduplication.ProcessResults
             await using var db = new AccountDedupeDb();
 
             var allMatchRates = await db.MatchRates
-                .Where(m => EF.Functions.Like(m.Account1.Grouping, groupingKey))
+                .Where(m => EF.Functions.Like(m.Account1.GroupingCityState, groupingKey))
                 .Include(m => m.Account1)
                 .Include(m => m.Account2)
                 .AsSplitQuery()
@@ -100,6 +101,8 @@ namespace AccountDeduplication.ProcessResults
                     AccountId2 = m.AccountId1,
                     Account1RoleCount = m.Account2RoleCount,
                     Account2RoleCount = m.Account1RoleCount,
+                    Account1 = m.Account2,
+                    Account2 = m.Account1
                 }).ToList());
             return allMatchRates;
         }

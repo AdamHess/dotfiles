@@ -4,25 +4,27 @@
     <OutputType>Exe</OutputType>
     <TargetFramework>net9.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>disable</Nullable>
+    <Nullable>enable</Nullable>
   </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="AddressParser" Version="1.0.3" />
+    <PackageReference Include="FuzzySharp" Version="2.0.2" />
+    <PackageReference Include="Phonix" Version="1.0.2" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\AccountDeduplication.DAL\AccountDeduplication.DAL.EF.csproj" />
     <ProjectReference Include="..\AccountDeduplication.Models\AccountDeduplication.CsvModels.csproj" />
-    <ProjectReference Include="..\AccountDeduplication.RecordLoggers\AccountDeduplication.RecordLoggers.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <None Update="Account.csv">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="MatchRate.db">
+    <None Update="account.csv">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
   </ItemGroup>
 	<PropertyGroup>
-		<NoWarn>$(NoWarn);IDE0305</NoWarn>
+		<NoWarn>SYSLIB1045</NoWarn>
 	</PropertyGroup>
 
 </Project>

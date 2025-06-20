@@ -1,5 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-
+	<PropertyGroup>
+		<NoWarn>SYSLIB1045</NoWarn>
+	</PropertyGroup>
     <PropertyGroup>
         <OutputType>Exe</OutputType>
         <TargetFramework>net9.0</TargetFramework>
@@ -18,21 +20,15 @@
         <PackageReference Include="MethodTimer.Fody" Version="3.2.3" />
         <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.5" />
         <PackageReference Include="Phonix" Version="1.0.2" />
+        <PackageReference Include="System.Linq.Async" Version="6.0.3" />
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\AccountDeduplication.DAL\AccountDeduplication.DAL.csproj" />
+      <ProjectReference Include="..\AccountDeduplication.DAL.Models\AccountDeduplication.DAL.Models.csproj" />
+      <ProjectReference Include="..\AccountDeduplication.DAL\AccountDeduplication.DAL.EF.csproj" />
+      <ProjectReference Include="..\AccountDeduplication.InterableExtensions\AccountDeduplication.IterableExtensions.csproj" />
       <ProjectReference Include="..\AccountDeduplication.Models\AccountDeduplication.CsvModels.csproj" />
       <ProjectReference Include="..\AccountDeduplication.RecordLoggers\AccountDeduplication.RecordLoggers.csproj" />
-    </ItemGroup>
-
-    <ItemGroup>
-      <None Update="Account.csv">
-        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      </None>
-      <None Update="IntermediateResults.csv">
-        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      </None>
     </ItemGroup>
 
 </Project>

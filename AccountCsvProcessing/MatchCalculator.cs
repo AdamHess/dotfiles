@@ -1,6 +1,6 @@
-using System.Collections.Concurrent;
-using System.Diagnostics;
-using AccountDeduplication.DAL;
+using AccountDeduplication.DAL.EF;
+using AccountDeduplication.DAL.Models;
+using AccountDeduplication.IterableExtensions;
 using AccountDeduplication.RecordLoggers;
 using Microsoft.EntityFrameworkCore;
 
@@ -8,15 +8,8 @@ namespace AccountDeduplication.CalculateMatchRates;
 
 public class MatchCalculator
 {
-    private IBatchLogger<MatchRate> Logger { get; set; }
-    private static int _groupsProcessed;
-    private static Random _random = new Random();
 
-    private static async Task<List<string>> GetProcessedGroups()
-    {
-        await using var db = new AccountDedupeDb();
-        return await db.ProcessingStatuses.Select(m => m.GroupId).ToListAsync();
-    }
+    private IBatchLogger<MatchRate> Logger { get; set; }
 
     private static async Task<bool> AlreadyProcessed(string groupKey)
     {
@@ -25,52 +18,22 @@ public class MatchCalculator
     }
 
     public async Task ExecuteAsync(
-        List<Account> accounts,
         IBatchLogger<MatchRate> logger,
         IBatchLogger<ProcessingStatus> statusLogger)
     {
         Logger = logger;
-        _groupsProcessed = 0;
-        var processedGroups = await GetProcessedGroups();
-        var groups = GetUnprocessedGroups(accounts, processedGroups);
+        var groups = await GetUnprocessedGroups();
 
-        PrintGroupSummary(groups);
+        await PrintGroupSummary(groups);
 
         Console.WriteLine("Press Any Key To continue");
         Console.ReadKey();
 
-        // Shuffle the groups randomly instead of reversing them
-        groups = groups.OrderBy(_ => _random.Next()).ToList();
 
-        var totalGroups = groups.Count;
 
-        // Prepare group info for progress tracking
-        var groupPairCounts = groups.ToDictionary(
-            g => g.Key,
-            g => (long)g.Count() * (g.Count() - 1) / 2
-        );
-        var groupProcessedPairs = new ConcurrentDictionary<string, long>();
-        var groupStopwatches = new ConcurrentDictionary<string, Stopwatch>();
-        var groupStatuses = new ConcurrentDictionary<string, ProcessingStatus>();
-
-        foreach (var group in groups)
-        {
-            groupStopwatches[group.Key] = Stopwatch.StartNew();
-            groupStatuses[group.Key] = new ProcessingStatus
-            {
-                AccountsInGroup = group.Count(),
-                GroupId = group.Key,
-                ProcessedAt = DateTime.UtcNow
-            };
-        }
 
         // Flatten all pairs across all groups
-        var allPairs = StreamAllAccountPairs(groups);
-
-        // For global progress
-        long totalPairs = groupPairCounts.Values.Sum();
-        long pairsProcessed = 0;
-        var globalStopwatch = Stopwatch.StartNew();
+        var allPairs = StreamAllAccountPairs(groups, statusLogger);
 
         await Parallel.ForEachAsync(
             allPairs,
@@ -83,53 +46,12 @@ public class MatchCalculator
                 {
                     await Logger.AddEntryAsync(matchRate);
                 }
-
-                // Track group progress
-                var processed = groupProcessedPairs.AddOrUpdate(groupKey, 1, (_, v) => v + 1);
-                var globalProcessed = Interlocked.Increment(ref pairsProcessed);
-
-                if (processed == groupPairCounts[groupKey])
-                {
-                    // Group done
-                    groupStopwatches[groupKey].Stop();
-                    int groupIndex = Interlocked.Increment(ref _groupsProcessed);
-                    var status = groupStatuses[groupKey];
-                    status.ProcessingTime = groupStopwatches[groupKey].Elapsed;
-                    await statusLogger.AddEntryAsync(status);
-                    Console.WriteLine(
-                        $"[DONE] Completed group '{groupKey}' ({status.AccountsInGroup} accounts, {groupPairCounts[groupKey]} pairs). " +
-                        $"Group {groupIndex} of {totalGroups}. " +
-                        $"Elapsed: {status.ProcessingTime.TotalMilliseconds} ms.");
-                }
-                else
-                {
-                    if (processed % 100000 == 0)
-                    {
-                        // Estimate global time left
-                        var globalElapsed = globalStopwatch.Elapsed.TotalSeconds;
-                        var globalAvgPerPair = globalElapsed / globalProcessed;
-                        var globalPairsLeft = totalPairs - globalProcessed;
-                        var globalEstSecondsLeft = (long)(globalPairsLeft * globalAvgPerPair);
-
-                        // Estimate local (group) time left
-                        var groupElapsed = groupStopwatches[groupKey].Elapsed.TotalSeconds;
-                        var groupAvgPerPair = groupElapsed / processed;
-                        var groupPairsLeft = groupPairCounts[groupKey] - processed;
-                        var groupEstSecondsLeft = (long)(groupPairsLeft * groupAvgPerPair);
-
-                        Console.WriteLine(
-                            $"[PROGRESS] Group '{groupKey}': Compared {processed}/{groupPairCounts[groupKey]} pairs, " +
-                            $"est. {FormatTime(groupEstSecondsLeft)} left for group. " +
-                            $"[GLOBAL] {globalProcessed}/{totalPairs} pairs, est. {FormatTime(globalEstSecondsLeft)} left total.");
-                    }
-                }
             });
 
-        globalStopwatch.Stop();
         Console.WriteLine("[INFO] All groups processed.");
     }
 
-    private string FormatTime(long seconds)
+    private static string FormatTime(long seconds)
     {
         if (seconds >= 86400)
         {
@@ -148,35 +70,43 @@ public class MatchCalculator
         return $"{seconds} sec";
     }
 
-    private static List<IGrouping<string, Account>> GetUnprocessedGroups(List<Account> accounts, List<string> processedGroups)
+    private static async Task<IAsyncReadOnlyList<IGrouping<string, Account>>> GetUnprocessedGroups()
     {
-        return
-        [
-            ..accounts.GroupBy(a => a.Grouping)
-                .Where(m => m.Count() > 1 && !processedGroups.Contains(m.Key))
-                .OrderByDescending(m => m.Count())
-        ];
+        await using var db = new AccountDedupeDb();
+        return db.Accounts.GroupBy(a => $"{a.GroupingCityState}_{a.BillingUnit}__{a.BillingHouseNumber}"
+        )
+            .Where(m => m.Count() > 1 && !db.ProcessingStatuses.Select(m => m.GroupId).Contains(m.Key))
+            .OrderByDescending(m => m.Count())
+            .AsAsyncEnumerable()
+            .AsAsyncReadOnlyList();
+
+
+
+
     }
 
-    private static void PrintGroupSummary(List<IGrouping<string, Account>> groups)
+    private static async Task PrintGroupSummary(IAsyncReadOnlyList<IGrouping<string, Account>> groups)
     {
-        Console.WriteLine($"Total Groups: {groups.Count}, top 10");
-        for (var i = 0; i < Math.Min(10, groups.Count); i++)
+
+        var top10 = await groups.Take(10).ToListAsync();
+        for (var i = 0; i < Math.Min(10, top10.Count); i++)
         {
-            var group = groups[i];
+            var group = top10[i];
             Console.WriteLine($"{i}. {group.Key}: {group.Count()}");
         }
     }
 
     // Streams all pairs across all groups, yielding (groupKey, account1, account2)
-    private static async IAsyncEnumerable<(string groupKey, Account, Account)> StreamAllAccountPairs(List<IGrouping<string, Account>> groups)
+    private static async IAsyncEnumerable<(string groupKey, Account, Account)> StreamAllAccountPairs(
+        IAsyncReadOnlyList<IGrouping<string, Account>> groups, IBatchLogger<ProcessingStatus> statusLogger)
     {
-        foreach (var group in groups)
+        await foreach (var group in groups)
         {
             if (await AlreadyProcessed(group.Key)) continue;
             var groupList = group.ToList();
             int count = groupList.Count;
             if (count < 2) continue;
+            var start = DateTime.Now;
             for (var account1Index = 0; account1Index < count; account1Index++)
             {
                 var account1 = groupList[account1Index];
@@ -187,18 +117,26 @@ public class MatchCalculator
                     await Task.Yield();
                 }
             }
+
+            await statusLogger.AddEntryAsync(new ProcessingStatus()
+            {
+                GroupId = group.Key,
+                ProcessedAt = start,
+                ProcessingTime = DateTime.Now - start
+            });
+            Console.WriteLine($"Finished Streaming Group {group.Key} with {count} records with ({count ^ 2}) compares {FormatTime((DateTime.Now - start).Seconds)}");
+
         }
     }
 
     private static MatchRate CalculateMatchPercentage(Account account1, Account account2)
     {
         var nameMatch = TokenSetSimilarity.TokenSetRatio(account1.Name, account2.Name) / 100.0;
+
         var billingAddressMatch =
-            TokenSetSimilarity.TokenSetRatio(AddressParser.NormalizeAddress(account1.BillingStreet),
-                AddressParser.NormalizeAddress(account2.BillingStreet)) / 100.0;
+            TokenSetSimilarity.TokenSetRatio(account1.BillingStreet, account2.BillingStreet) / 100.0;
         var shippingAddressMatch =
-            TokenSetSimilarity.TokenSetRatio(AddressParser.NormalizeAddress(account1.ShippingStreet),
-                AddressParser.NormalizeAddress(account2.ShippingStreet)) / 100.0;
+            TokenSetSimilarity.TokenSetRatio(account1.ShippingStreet, account2.ShippingStreet) / 100.0;
         var otherNameMatch = TokenSetSimilarity.TokenSetRatio(account1.OtherOrgName, account2.OtherOrgName) / 100.0;
         return new MatchRate()
         {

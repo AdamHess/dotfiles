@@ -1,6 +1,7 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using AccountDeduplication.DAL.Models;
+using Microsoft.EntityFrameworkCore;
 
-namespace AccountDeduplication.DAL
+namespace AccountDeduplication.DAL.EF
 {
     // ReSharper disable once IdentifierTypo
     public class AccountDedupeDb(string filename = "MatchRate.db") : DbContext

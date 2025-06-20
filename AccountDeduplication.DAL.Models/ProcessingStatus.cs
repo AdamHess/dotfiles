@@ -1,11 +1,11 @@
-﻿namespace AccountDeduplication.DAL
+﻿namespace AccountDeduplication.DAL.Models
 {
     public class ProcessingStatus
     {
-        public string GroupId { get; set; }
-        
-        public int  AccountsInGroup { get; set; }
-        
+        public required string GroupId { get; set; }
+
+        public int AccountsInGroup { get; set; }
+
         public DateTimeOffset ProcessedAt { get; set; }
         public TimeSpan ProcessingTime { get; set; }
     }

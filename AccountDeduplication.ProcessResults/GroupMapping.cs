@@ -1,4 +1,4 @@
-﻿using AccountDeduplication.DAL;
+﻿using AccountDeduplication.DAL.Models;
 
 namespace AccountDeduplication.ProcessResults
 {
