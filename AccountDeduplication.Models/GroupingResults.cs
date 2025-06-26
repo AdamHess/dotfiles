@@ -2,12 +2,12 @@ namespace AccountDeduplication.CsvModels;
 
 public class GroupingResults
 {
-    public string GroupAccountId { get; set; }
-    public string AccountId { get; set; }
+    public required string GroupAccountId { get; set; }
+    public required string AccountId { get; set; }
 
-    public string Name { get; set; }
-    public string Street { get; set; }
-    public bool IsGroupLeader { get; set; }
-    public string NPI { get; set; }
+    public required string Name { get; set; }
+    public required string Street { get; set; }
+    public required bool IsGroupLeader { get; set; }
+    public required string NPI { get; set; }
 
 }

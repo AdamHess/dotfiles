@@ -6,7 +6,7 @@ namespace AccountDeduplication.LoadDatabase;
 public static class AddressParser
 {
     // Dictionary of street suffix abbreviations and their full forms
-    private static readonly (string regex, string mapping)[] AbbreviationMap =
+    private static readonly (string regex, string mapping)[] AbrvMap =
     [
         ("st", "Street"),
         ("ave", "Avenue"),
@@ -107,10 +107,10 @@ public static class AddressParser
         ("dl", "Dale"),
         ("hlw", "Hollow"),
         ("gate", "Gate"),
-        ("n", "North"),
-        ("s", "South"),
-        ("e", "East"),
-        ("w", "West"),
+        (@"n\.?", "North"),
+        (@"s\.?", "South"),
+        (@"e\.?", "East"),
+        (@"w\.?", "West"),
         (@"n\.?e\.?", "Northeast"),
         (@"s\.?e\.?", "Southeast"),
         (@"n\.?w\.?", "Northwest"),
@@ -154,9 +154,9 @@ public static class AddressParser
         ("annex", "Annex"),
         ("subu", "Suburban Unit")
     ];
-    private static readonly Dictionary<Regex, string> AbbreviationPatterns = AbbreviationMap
+    private static readonly Dictionary<Regex, string> AbbreviationPatterns = AbrvMap
         .ToDictionary(
-            kvp => new Regex(@"\b" + kvp.regex + @"\.?\b", RegexOptions.IgnoreCase | RegexOptions.Compiled),
+            kvp => new Regex(@"\b" + kvp.regex + @"\.?\b\.?", RegexOptions.IgnoreCase | RegexOptions.Compiled),
             kvp => kvp.mapping
         );
 
@@ -178,9 +178,6 @@ public static class AddressParser
         "Lot",
         "Basement",
         "Rear",
-        "Front",
-        "Lower",
-        "Upper",
         "Mezzanine",
         "Penthouse",
         "Garage",
@@ -190,12 +187,19 @@ public static class AddressParser
         "Annex",
         "Suburban Unit"
     ];
-
-
     private static readonly Regex AddressPartsRegex = new(
-        $@"^\s*(?<house>\d+)\s+(?<street>.*?)(?:\s+(?<unit>({string.Join("|", UnitTypes.Select(Regex.Escape))})\.?\s*\w+))?\s*$",
-        RegexOptions.IgnoreCase | RegexOptions.Compiled
+        $@"^\s*
+    (?<house>\d+)\s+                                # House number
+    (?<street>.*?)                                   # Non-greedy capture of street name
+    (?:\s+(?:{string.Join("|", UnitTypes.Select(Regex.Escape))})\s*
+    (?<unit>[A-Za-z0-9\-]+))?                        # Optional unit with dash support
+    \s*$
+    ",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.IgnorePatternWhitespace
     );
+
+
+
     public static string NormalizeAddress(string? address)
     {
         if (string.IsNullOrWhiteSpace(address))
@@ -206,13 +210,16 @@ public static class AddressParser
         normalized = Regex.Replace(normalized, @"\s+", " ");
 
         normalized = normalized.Normalize(NormalizationForm.FormC).Trim();
+        if (string.IsNullOrWhiteSpace(normalized))
+            return "";
 
-        foreach (var (pattern, replacement) in AbbreviationMap)
+        foreach (var (pattern, replacement) in AbbreviationPatterns)
         {
+
             normalized = pattern.Replace(normalized, replacement);
         }
 
-        return normalized;
+        return normalized.ToLowerInvariant();
 
     }
 

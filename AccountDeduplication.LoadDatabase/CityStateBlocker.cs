@@ -10,13 +10,19 @@ public static class CityStateBlocker
 
 
     // Normalize: lowercase, remove non-letters
-    private static string Normalize(string input)
+    public static string Normalize(string input)
     {
-        return Regex.Replace(input.ToLowerInvariant().Normalize(), "[^a-z]", "", RegexOptions.Compiled);
+        return string.IsNullOrWhiteSpace(input)
+            ? string.Empty
+            : Regex.Replace(input.ToLowerInvariant()
+                    .Normalize(),
+                "[^a-z]",
+                "",
+                RegexOptions.Compiled);
     }
 
     // Phonetic encoding
-    private static string GetPhoneticCode(string? input)
+    private static string GetPhoneticCode(string input)
     {
         if (string.IsNullOrWhiteSpace(input))
             return string.Empty;
@@ -39,6 +45,7 @@ public static class CityStateBlocker
 
     // Final blocking key using both city and state
     public static string? GetGroupingKey(
+        string? house,
         string? city,
         string? state)
     {
@@ -54,10 +61,10 @@ public static class CityStateBlocker
             }
             normalizedState = closestMatch.Value;
         }
-        var cityPrefix = GetPhoneticCode(city);
-        var stateSuffix = GetPhoneticCode(normalizedState);
+        var cityCode = GetTokenSetKey(city);
+        var stateCode = GetTokenSetKey(normalizedState);
 
-        return $"{cityPrefix}__{stateSuffix}";
+        return $"{stateCode}|{cityCode}|{house}";
     }
 
     public static string GetGroupingPair(string? toPair)

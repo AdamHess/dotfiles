@@ -64,7 +64,7 @@ namespace AccountDeduplication.DAL.EF.Migrations
                 {
                     AccountId = table.Column<string>(type: "TEXT", nullable: false),
                     Phase = table.Column<int>(type: "INTEGER", nullable: false),
-                    GroupAccountId = table.Column<string>(type: "TEXT", nullable: false),
+                    GroupAccountId = table.Column<string>(type: "TEXT", nullable: true),
                     MatchPercentage = table.Column<double>(type: "REAL", nullable: false)
                 },
                 constraints: table =>
@@ -80,8 +80,7 @@ namespace AccountDeduplication.DAL.EF.Migrations
                         name: "FK_GroupPairs_Accounts_GroupAccountId",
                         column: x => x.GroupAccountId,
                         principalTable: "Accounts",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        principalColumn: "Id");
                 });
 
             migrationBuilder.CreateTable(
@@ -113,6 +112,21 @@ namespace AccountDeduplication.DAL.EF.Migrations
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Accounts_BillingCity",
+                table: "Accounts",
+                column: "BillingCity");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Accounts_GroupingCityState",
+                table: "Accounts",
+                column: "GroupingCityState");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Accounts_ShippingCity",
+                table: "Accounts",
+                column: "ShippingCity");
 
             migrationBuilder.CreateIndex(
                 name: "IX_GroupPairs_GroupAccountId",

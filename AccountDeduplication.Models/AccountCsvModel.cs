@@ -1,13 +1,12 @@
 ﻿namespace AccountDeduplication.CsvModels;
 
-public class AccountCsvModel
+public struct AccountCsvModel
 {
 
 
 
     public required string Id { get; set; }
     public string? Name { get; set; }
-
 
     public string? ShippingStreet { get; set; }
     public string? BillingStreet { get; set; }

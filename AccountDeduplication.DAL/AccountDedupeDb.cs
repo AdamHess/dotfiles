@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 namespace AccountDeduplication.DAL.EF
 {
     // ReSharper disable once IdentifierTypo
-    public class AccountDedupeDb(string filename = "MatchRate.db") : DbContext
+    public class AccountDedupeDb(string filename = "D:/MatchRate_3.db") : DbContext
     {
         public DbSet<MatchRate> MatchRates { get; set; }
 
@@ -16,7 +16,8 @@ namespace AccountDeduplication.DAL.EF
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
-            optionsBuilder.UseSqlite($"Data Source={DbPath}");
+            optionsBuilder.UseSqlite($"Data Source={DbPath}")
+                .UseLazyLoadingProxies();
         }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -32,12 +33,15 @@ namespace AccountDeduplication.DAL.EF
                 .HasColumnOrder(2)
                 .HasMaxLength(18)
                 .IsRequired();
+
             var a = modelBuilder.Entity<Account>();
             a.HasKey(a => a.Id);
             a.Property(a => a.Id)
             .HasMaxLength(18)
             .IsRequired();
-
+            a.HasIndex(m => m.BillingCity);
+            a.HasIndex(m => m.ShippingCity);
+            a.HasIndex(m => m.GroupingCityState);
             a.HasMany(m => m.GroupPairs)
                 .WithOne(m => m.Account)
                 .HasForeignKey(m => m.AccountId);
@@ -47,6 +51,7 @@ namespace AccountDeduplication.DAL.EF
 
             var ps = modelBuilder.Entity<ProcessingStatus>();
             ps.HasKey(m => m.GroupId);
+
 
 
 

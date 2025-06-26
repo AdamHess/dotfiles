@@ -15,7 +15,11 @@ namespace AccountDeduplication.DAL.EF.Migrations
         protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
-            modelBuilder.HasAnnotation("ProductVersion", "9.0.5");
+            modelBuilder
+                .HasAnnotation("ProductVersion", "9.0.6")
+                .HasAnnotation("Proxies:ChangeTracking", false)
+                .HasAnnotation("Proxies:CheckEquality", false)
+                .HasAnnotation("Proxies:LazyLoading", true);
 
             modelBuilder.Entity("AccountDeduplication.DAL.Models.Account", b =>
                 {
@@ -91,6 +95,12 @@ namespace AccountDeduplication.DAL.EF.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("BillingCity");
+
+                    b.HasIndex("GroupingCityState");
+
+                    b.HasIndex("ShippingCity");
+
                     b.ToTable("Accounts");
                 });
 
@@ -103,7 +113,6 @@ namespace AccountDeduplication.DAL.EF.Migrations
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("GroupAccountId")
-                        .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<double>("MatchPercentage")
@@ -182,9 +191,7 @@ namespace AccountDeduplication.DAL.EF.Migrations
 
                     b.HasOne("AccountDeduplication.DAL.Models.Account", "GroupAccount")
                         .WithMany()
-                        .HasForeignKey("GroupAccountId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .HasForeignKey("GroupAccountId");
 
                     b.Navigation("Account");
 

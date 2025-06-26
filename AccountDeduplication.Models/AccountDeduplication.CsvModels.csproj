@@ -8,6 +8,11 @@
 
   <ItemGroup>
     <PackageReference Include="CsvHelper" Version="33.1.0" />
+    <PackageReference Include="Sep" Version="0.11.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AccountDeduplication.DAL.Models\AccountDeduplication.DAL.Models.csproj" />
   </ItemGroup>
 
 </Project>

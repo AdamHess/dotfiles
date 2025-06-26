@@ -6,22 +6,60 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AccountDeduplication.ProcessResults
 {
-    internal class Program
+    public class Program
     {
         private const double MinimumMatchRate = 0.85;
-        static async Task Main()
-        {
-            var allMatchRates = await GetMatchRatesForGroupingKey("LNKT-dglnow__FL-fl");
-            var phase1Results = Phase1(allMatchRates);
-            var fileTime = DateTime.Now.ToFileTime();
-            await SaveResultsToFile($"Phase1Results.csv", phase1Results);
-            var phase2 = Phase2(allMatchRates, phase1Results);
-            await SaveResultsToFile($"Phase2Results.csv", phase2);
-            var phase3 = Phase3(allMatchRates, phase2);
-            await SaveResultsToFile($"Phase3Results.csv", phase3);
-            var phase4 = Phase4(allMatchRates, phase3);
-            await SaveResultsToFile($"Phase4Results.csv", phase4);
 
+        public static void Main()
+        {
+
+        }
+        public static async Task ProcessResultsForPrefix(string groupingPrefix = null)
+        {
+            var allMatchRates = await GetMatchRatesForGroupingKey(groupingPrefix);
+            var phase1Results = Phase1(allMatchRates);
+            Console.WriteLine($"Phase 1 Groups {phase1Results.Count}");
+            await SaveResultsToFile($"D:/Phase1Results.csv", phase1Results);
+            var phase2 = Phase2(allMatchRates, phase1Results);
+            await SaveResultsToFile($"D:/Phase2Results.csv", phase2);
+            var phase3 = Phase3(allMatchRates, phase2);
+            await SaveResultsToFile($"D:/Phase3Results.csv", phase3);
+            var phase4 = Phase4(allMatchRates, phase3);
+            await SaveResultsToFile($"D:/Phase4Results.csv", phase4);
+
+            await GenerateDataLoadFile("D:/SalesforceDataload.csv", phase4);
+        }
+
+        private static async Task GenerateDataLoadFile(string salesforceCsvName, List<GroupMapping> groupings)
+        {
+            await using CsvLogger<DataLoadModel> csvLogger = new(salesforceCsvName);
+
+            foreach (var group in groupings)
+            {
+                foreach (var account in group.GroupMembers)
+                {
+                    var model = new DataLoadModel()
+                    {
+                        Id = account.Id,
+                        Name = group.GroupLeader.Name != account.Name ? group.GroupLeader.Name : null,
+                        OtherOrgName =
+                            group.GroupLeader.OtherOrgName != account.OtherOrgName
+                                ? group.GroupLeader.OtherOrgName
+                                : null,
+                        BillingAddress = group.GroupLeader.BillingStreetRaw != account.BillingStreetRaw
+                            ? group.GroupLeader.BillingStreetRaw
+                            : null,
+                        ShippingAddress =
+                            group.GroupLeader.ShippingStreetRaw != account.ShippingStreetRaw
+                                ? group.GroupLeader.ShippingStreetRaw
+                                : null,
+                    };
+                    if (model.AnyNonNullVals())
+                    {
+                        await csvLogger.AddEntryAsync(model);
+                    }
+                }
+            }
         }
 
         private static async Task SaveResultsToFile(string fileName, List<GroupMapping> groupingResults)
@@ -34,7 +72,7 @@ namespace AccountDeduplication.ProcessResults
                         GroupAccountId = p.GroupLeader.Id,
                         AccountId = gm.Id,
                         Name = gm.Name,
-                        Street = gm.ShippingStreet,
+                        Street = gm.BillingStreetRaw,
                         IsGroupLeader = p.GroupLeader.Id == gm.Id,
                         NPI = gm.NPI
                     })).OrderBy(x => x.GroupAccountId)
@@ -55,6 +93,7 @@ namespace AccountDeduplication.ProcessResults
                                                             leaders.Contains(m.AccountId2))
                 .ToList();
             var leaderGrouping = GroupingAlgorithm(filterMatchRates, matchCalculatingCriterion);
+            Console.WriteLine($"Remapped Group Leaders {leaderGrouping.Count}");
             var phaseNResults = MergeGroupsAndRebuildGroupingList(phaseNLastResults, leaderGrouping);
             return phaseNResults;
 
@@ -82,17 +121,23 @@ namespace AccountDeduplication.ProcessResults
         }
 
 
-        private static async Task<List<MatchRate>> GetMatchRatesForGroupingKey(string groupingKey)
+        private static async Task<List<MatchRate>> GetMatchRatesForGroupingKey(string groupingPrefix)
         {
             await using var db = new AccountDedupeDb();
+            var query = db.MatchRates
+                 .Include(m => m.Account1)
+                 .Include(m => m.Account2).AsParallel();
+            if (groupingPrefix != null)
+            {
+                query = query
+                    .Where(m => m.Account1.GroupingCityState.StartsWith(groupingPrefix) ||
+                                m.Account2.GroupingCityState.StartsWith(groupingPrefix));
+            }
 
-            var allMatchRates = await db.MatchRates
-                .Where(m => EF.Functions.Like(m.Account1.GroupingCityState, groupingKey))
-                .Include(m => m.Account1)
-                .Include(m => m.Account2)
-                .AsSplitQuery()
-                .AsNoTracking()
-                .ToListAsync();
+
+            var allMatchRates = query.ToList();
+
+
 
             allMatchRates.AddRange(allMatchRates.Select(m =>
                 new MatchRate()
@@ -104,6 +149,7 @@ namespace AccountDeduplication.ProcessResults
                     Account1 = m.Account2,
                     Account2 = m.Account1
                 }).ToList());
+            Console.WriteLine($"Total Match Rates: {allMatchRates.Count}");
             return allMatchRates;
         }
 

@@ -1,6 +1,6 @@
-﻿using System.Threading.Channels;
-using EFCore.BulkExtensions;
+﻿using EFCore.BulkExtensions;
 using Microsoft.EntityFrameworkCore;
+using System.Threading.Channels;
 
 namespace AccountDeduplication.RecordLoggers;
 
@@ -83,6 +83,7 @@ public class DbLogger<T> : IBatchLogger<T> where T : class
 
     public async ValueTask DisposeAsync()
     {
+        Console.WriteLine("Disposing Object");
         await _cts.CancelAsync();
         _channel.Writer.Complete();
         await _backgroundWriterTask;

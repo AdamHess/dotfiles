@@ -4,7 +4,7 @@
     <OutputType>Exe</OutputType>
     <TargetFramework>net9.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
+    <Nullable>disable</Nullable>
   </PropertyGroup>
 
   <ItemGroup>
@@ -15,7 +15,9 @@
 
   <ItemGroup>
     <ProjectReference Include="..\AccountDeduplication.DAL\AccountDeduplication.DAL.EF.csproj" />
+    <ProjectReference Include="..\AccountDeduplication.InterableExtensions\AccountDeduplication.IterableExtensions.csproj" />
     <ProjectReference Include="..\AccountDeduplication.Models\AccountDeduplication.CsvModels.csproj" />
+    <ProjectReference Include="..\AccountDeduplication.RecordLoggers\AccountDeduplication.RecordLoggers.csproj" />
   </ItemGroup>
 
   <ItemGroup>

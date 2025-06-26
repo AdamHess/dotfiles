@@ -1,4 +1,6 @@
-﻿namespace AccountDeduplication.IterableExtensions;
+﻿using System.Collections;
+
+namespace AccountDeduplication.IterableExtensions;
 
 public class AsyncReadOnlyList<T>(IAsyncEnumerable<T> source) : IAsyncReadOnlyList<T>
 {
@@ -58,5 +60,30 @@ public class AsyncReadOnlyList<T>(IAsyncEnumerable<T> source) : IAsyncReadOnlyLi
             }
         }
 
+    }
+
+    public IEnumerator<T> GetEnumerator()
+    {
+        var result = default(T);
+        for (var i = 0; ; i++)
+        {
+            try
+            {
+                result = GetAsync(i).GetAwaiter().GetResult();
+            }
+            catch (ArgumentOutOfRangeException)
+            {
+            }
+
+            if (result == null)
+            {
+                yield break;
+            }
+        }
+    }
+
+    IEnumerator IEnumerable.GetEnumerator()
+    {
+        return GetEnumerator();
     }
 }
