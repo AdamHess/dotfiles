@@ -1,4 +1,3 @@
-using AccountDeduplication.DAL.EF;
 using AccountDeduplication.DAL.Models;
 using AccountDeduplication.RecordLoggers;
 using Microsoft.EntityFrameworkCore;
@@ -11,12 +10,6 @@ public class MatchCalculator
 {
     private static Random Random { get; } = new();
     private IBatchLogger<MatchRate> Logger { get; set; }
-
-    private static async Task<bool> AlreadyProcessed(string groupKey)
-    {
-        await using var db = new AccountDedupeDb();
-        return await db.ProcessingStatuses.AnyAsync(m => m.GroupId == groupKey);
-    }
 
     public async Task ExecuteAsync(
          IBatchLogger<MatchRate> logger,

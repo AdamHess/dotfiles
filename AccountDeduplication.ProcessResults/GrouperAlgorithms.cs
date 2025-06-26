@@ -6,26 +6,22 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AccountDeduplication.ProcessResults
 {
-    public class Program
+    public class GrouperAlgorithms(Func<AccountDedupeDb> contextFactory, string outputDirectory)
     {
         private const double MinimumMatchRate = 0.85;
 
-        public static void Main()
-        {
-
-        }
-        public static async Task ProcessResultsForPrefix(string groupingPrefix = null)
+        public async Task ProcessResultsForPrefix(string groupingPrefix = null)
         {
             var allMatchRates = await GetMatchRatesForGroupingKey(groupingPrefix);
             var phase1Results = Phase1(allMatchRates);
             Console.WriteLine($"Phase 1 Groups {phase1Results.Count}");
-            await SaveResultsToFile($"D:/Phase1Results.csv", phase1Results);
+            await SaveResultsToFile(Path.Join(outputDirectory, "Phase1Results.csv"), phase1Results);
             var phase2 = Phase2(allMatchRates, phase1Results);
-            await SaveResultsToFile($"D:/Phase2Results.csv", phase2);
+            await SaveResultsToFile(Path.Join(outputDirectory, "Phase2Results.csv"), phase2);
             var phase3 = Phase3(allMatchRates, phase2);
-            await SaveResultsToFile($"D:/Phase3Results.csv", phase3);
+            await SaveResultsToFile(Path.Join(outputDirectory, "Phase3Results.csv"), phase3);
             var phase4 = Phase4(allMatchRates, phase3);
-            await SaveResultsToFile($"D:/Phase4Results.csv", phase4);
+            await SaveResultsToFile(Path.Join(outputDirectory, "Phase4Results.csv"), phase4);
 
             await GenerateDataLoadFile("D:/SalesforceDataload.csv", phase4);
         }
@@ -121,9 +117,9 @@ namespace AccountDeduplication.ProcessResults
         }
 
 
-        private static async Task<List<MatchRate>> GetMatchRatesForGroupingKey(string groupingPrefix)
+        private async Task<List<MatchRate>> GetMatchRatesForGroupingKey(string groupingPrefix)
         {
-            await using var db = new AccountDedupeDb();
+            await using var db = contextFactory();
             var query = db.MatchRates
                  .Include(m => m.Account1)
                  .Include(m => m.Account2).AsParallel();

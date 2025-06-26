@@ -31,7 +31,7 @@ public static class CityStateBlocker
     }
 
     // Token set hash: sort, deduplicate
-    public static string GetTokenSetKey(string? input)
+    public static string GetTokenSetKey(string input)
     {
         if (string.IsNullOrWhiteSpace(input))
             return string.Empty;
@@ -44,10 +44,10 @@ public static class CityStateBlocker
     }
 
     // Final blocking key using both city and state
-    public static string? GetGroupingKey(
-        string? house,
-        string? city,
-        string? state)
+    public static string GetGroupingKey(
+        string house,
+        string city,
+        string state)
     {
         if (string.IsNullOrWhiteSpace(city) || string.IsNullOrWhiteSpace(state))
             return null;
@@ -61,13 +61,13 @@ public static class CityStateBlocker
             }
             normalizedState = closestMatch.Value;
         }
-        var cityCode = GetTokenSetKey(city);
+        var cityCode = GetGroupingPair(city);
         var stateCode = GetTokenSetKey(normalizedState);
 
         return $"{stateCode}|{cityCode}|{house}";
     }
 
-    public static string GetGroupingPair(string? toPair)
+    public static string GetGroupingPair(string toPair)
     {
 
 

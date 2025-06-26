@@ -200,7 +200,7 @@ public static class AddressParser
 
 
 
-    public static string NormalizeAddress(string? address)
+    public static string NormalizeAddress(string address)
     {
         if (string.IsNullOrWhiteSpace(address))
             return "";
@@ -223,7 +223,7 @@ public static class AddressParser
 
     }
 
-    public static (string houseNumber, string streetAddress, string unit) GetAddressParts(string? address)
+    public static (string houseNumber, string streetAddress, string unit) GetAddressParts(string address)
     {
         if (string.IsNullOrWhiteSpace(address))
             return (string.Empty, string.Empty, string.Empty);

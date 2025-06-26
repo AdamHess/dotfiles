@@ -1,5 +1,4 @@
 ﻿using AccountDeduplication.CsvModels;
-using AccountDeduplication.DAL.EF;
 using AccountDeduplication.DAL.Models;
 using AccountDeduplication.RecordLoggers;
 using EFCore.BulkExtensions;
@@ -7,18 +6,11 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AccountDeduplication.LoadDatabase;
 
-public class Program
+public class LoaderAndProcessor(Func<DbContext> contextFactory)
 {
 
-    public static void Main()
+    public async Task LoadDatabaseAndSaveAccounts(string inputFile, string groupingPrefix = null, string outputFile = null)
     {
-
-    }
-    public static async Task LoadDatabaseAndSaveAccounts(string inputFile, string groupingPrefix = null, string outputFile = null)
-    {
-        await InitializeDb();
-
-
         Console.WriteLine("Loading Csv");
 
         var accounts = CsvBinder.LoadCsv<AccountCsvModel>(inputFile).ToList();
@@ -31,7 +23,7 @@ public class Program
                 .AsParallel()
                 .Select(ToAccount)
                 .Where(m => !string.IsNullOrWhiteSpace(m.GroupingCityState) &&
-                            m.GroupingCityState.StartsWith(groupingPrefix))
+                            m.GroupingCityState.Contains(groupingPrefix))
                 .ToList();
         }
         else
@@ -53,19 +45,14 @@ public class Program
     }
 
 
-    private static async Task SaveOrUpdateAccountsToDb(List<Account> accounts)
+    private async Task SaveOrUpdateAccountsToDb(List<Account> accounts)
     {
-        await using var db = new AccountDedupeDb();
-
+        await using var db = contextFactory();
         await db.BulkInsertOrUpdateAsync(accounts);
     }
 
 
-    private static async Task InitializeDb()
-    {
-        await using var db = new AccountDedupeDb();
-        await db.Database.MigrateAsync();
-    }
+
     public static Account ToAccount(AccountCsvModel csvModel)
     {
         var (billingHouse, billingStreet, billingUnit) = AddressParser.GetAddressParts(csvModel.BillingStreet);

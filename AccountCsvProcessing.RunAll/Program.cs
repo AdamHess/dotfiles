@@ -1,4 +1,10 @@
-﻿namespace AccountCsvProcessing.RunAll
+﻿using AccountDeduplication.CalculateMatchRates;
+using AccountDeduplication.DAL.EF;
+using AccountDeduplication.LoadDatabase;
+using AccountDeduplication.ProcessResults;
+using Microsoft.EntityFrameworkCore;
+
+namespace AccountCsvProcessing.RunAll
 {
     internal class Program
     {
@@ -7,9 +13,25 @@
             //var inputFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Account.csv");
             var inputFile = "D:\\ReducedSet.csv";
             var reducedSetOutputFile = "D:\\ReducedSet.csv";
-            await AccountDeduplication.LoadDatabase.Program.LoadDatabaseAndSaveAccounts(inputFile);
-            await AccountDeduplication.CalculateMatchRates.Program.CalculateMatchRates();
-            await AccountDeduplication.ProcessResults.Program.ProcessResultsForPrefix();
+            await InitializeDb();
+            var dbLoader = new LoaderAndProcessor(DbContextFactory);
+            await dbLoader.LoadDatabaseAndSaveAccounts(inputFile, "dglnow", reducedSetOutputFile);
+            var matchCalculatorExecutor = new MatchCalculatorExecutor(DbContextFactory);
+            await matchCalculatorExecutor.CalculateMatchRates(DbContextFactory);
+            var grouperAlgorithm = new GrouperAlgorithms(DbContextFactory, "D:\\");
+            await grouperAlgorithm.ProcessResultsForPrefix();
+        }
+
+
+        private static async Task InitializeDb()
+        {
+            await using var db = new AccountDedupeDb();
+            await db.Database.MigrateAsync();
+        }
+
+        private static AccountDedupeDb DbContextFactory()
+        {
+            return new AccountDedupeDb();
         }
     }
 }
