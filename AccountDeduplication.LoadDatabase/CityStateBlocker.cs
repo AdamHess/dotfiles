@@ -67,6 +67,16 @@ public static class CityStateBlocker
         return $"{stateCode}|{cityCode}|{house}";
     }
 
+    public static string GetGroupingKey(
+        string house,
+        string city,
+        string state,
+
+        string unit)
+    {
+        return $"{GetGroupingKey(house, city, state)}|{unit}";
+    }
+
     public static string GetGroupingPair(string toPair)
     {
 

@@ -46,5 +46,8 @@ public class Account
 
 
     public virtual IList<GroupPair> GroupPairs { get; set; } = [];
+    public string FirstName { get; set; }
+    public string LastName { get; set; }
 
+    public bool IsPersonAccount => RecordTypeName?.Equals("Person Account", StringComparison.OrdinalIgnoreCase) == true;
 }

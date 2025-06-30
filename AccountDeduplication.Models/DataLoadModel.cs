@@ -8,10 +8,11 @@ public class DataLoadModel
     public string BillingAddress { get; set; }
     public string ShippingAddress { get; set; }
     public string OtherOrgName { get; set; }
-
+    public string FirstName { get; set; }
+    public string LastName { get; set; }
     public bool AnyNonNullVals()
     {
-        return Name != null || BillingAddress != null || ShippingAddress != null || OtherOrgName != null;
+        return Name != null || BillingAddress != null || ShippingAddress != null || OtherOrgName != null || LastName != null || FirstName != null;
     }
 
 }

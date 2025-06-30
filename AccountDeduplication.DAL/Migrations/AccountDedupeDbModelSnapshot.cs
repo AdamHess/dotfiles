@@ -51,7 +51,13 @@ namespace AccountDeduplication.DAL.EF.Migrations
                     b.Property<string>("BillingUnit")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("FirstName")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("GroupingCityState")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("LastName")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("NPI")

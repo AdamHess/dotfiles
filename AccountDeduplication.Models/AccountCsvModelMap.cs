@@ -20,8 +20,13 @@ public class AccountCsvModelMap : ClassMap<AccountCsvModel>
         Map(m => m.ShippingCity).Name("ShippingCity");
         Map(m => m.ShippingState).Name("ShippingState");
 
+        Map(m => m.FirstName).Name("FirstName");
+        Map(m => m.LastName).Name("LastName");
+
+        Map(m => m.IsPersonAccount).Ignore();
 
         // IsPerson is computed, so not mapped
+
 
     }
 }

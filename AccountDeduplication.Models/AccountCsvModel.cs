@@ -26,4 +26,9 @@ public struct AccountCsvModel
     public string ShippingPostalCode { get; set; }
     public string BillingPostalCode { get; set; }
 
+    public readonly bool IsPersonAccount => RecordTypeName.Equals("Person Account", StringComparison.OrdinalIgnoreCase);
+
+    public string LastName { get; set; }
+    public string FirstName { get; set; }
+
 }

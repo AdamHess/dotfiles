@@ -45,12 +45,14 @@ namespace AccountDeduplication.DAL.EF
             a.HasMany(m => m.GroupPairs)
                 .WithOne(m => m.Account)
                 .HasForeignKey(m => m.AccountId);
+            a.Ignore(m => m.IsPersonAccount);
 
             var gp = modelBuilder.Entity<GroupPair>();
             gp.HasKey(m => new { m.AccountId, m.Phase });
 
             var ps = modelBuilder.Entity<ProcessingStatus>();
             ps.HasKey(m => m.GroupId);
+
 
 
 

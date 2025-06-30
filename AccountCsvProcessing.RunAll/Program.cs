@@ -11,11 +11,11 @@ namespace AccountCsvProcessing.RunAll
         public static async Task Main()
         {
             //var inputFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Account.csv");
-            var inputFile = "D:\\ReducedSet.csv";
+            var inputFile = "D:\\Accounts.csv";
             var reducedSetOutputFile = "D:\\ReducedSet.csv";
             await InitializeDb();
             var dbLoader = new LoaderAndProcessor(DbContextFactory);
-            await dbLoader.LoadDatabaseAndSaveAccounts(inputFile, "dglnow", reducedSetOutputFile);
+            await dbLoader.LoadDatabaseAndSaveAccounts(inputFile, "dglnow");
             var matchCalculatorExecutor = new MatchCalculatorExecutor(DbContextFactory);
             await matchCalculatorExecutor.CalculateMatchRates(DbContextFactory);
             var grouperAlgorithm = new GrouperAlgorithms(DbContextFactory, "D:\\");

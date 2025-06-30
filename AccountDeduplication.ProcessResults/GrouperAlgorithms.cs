@@ -30,14 +30,15 @@ namespace AccountDeduplication.ProcessResults
         {
             await using CsvLogger<DataLoadModel> csvLogger = new(salesforceCsvName);
 
+
             foreach (var group in groupings)
             {
-                foreach (var account in group.GroupMembers)
+                foreach (var account in group.GroupMembers.DistinctBy(m => m.Id))
                 {
                     var model = new DataLoadModel()
                     {
                         Id = account.Id,
-                        Name = group.GroupLeader.Name != account.Name ? group.GroupLeader.Name : null,
+                        Name = group.GroupLeader.IsPersonAccount && group.GroupLeader.Name != account.Name ? group.GroupLeader.Name : null,
                         OtherOrgName =
                             group.GroupLeader.OtherOrgName != account.OtherOrgName
                                 ? group.GroupLeader.OtherOrgName
@@ -49,6 +50,12 @@ namespace AccountDeduplication.ProcessResults
                             group.GroupLeader.ShippingStreetRaw != account.ShippingStreetRaw
                                 ? group.GroupLeader.ShippingStreetRaw
                                 : null,
+                        FirstName = group.GroupLeader.FirstName != account.FirstName
+                            ? group.GroupLeader.FirstName
+                            : null,
+                        LastName = group.GroupLeader.LastName != account.LastName
+                            ? group.GroupLeader.LastName
+                            : null
                     };
                     if (model.AnyNonNullVals())
                     {

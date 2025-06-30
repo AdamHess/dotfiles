@@ -37,7 +37,9 @@ namespace AccountDeduplication.DAL.EF.Migrations
                     BillingCity = table.Column<string>(type: "TEXT", nullable: true),
                     ShippingPostalCode = table.Column<string>(type: "TEXT", nullable: true),
                     BillingPostalCode = table.Column<string>(type: "TEXT", nullable: true),
-                    GroupingCityState = table.Column<string>(type: "TEXT", nullable: true)
+                    GroupingCityState = table.Column<string>(type: "TEXT", nullable: true),
+                    FirstName = table.Column<string>(type: "TEXT", nullable: true),
+                    LastName = table.Column<string>(type: "TEXT", nullable: true)
                 },
                 constraints: table =>
                 {

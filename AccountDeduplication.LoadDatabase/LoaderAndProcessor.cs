@@ -9,7 +9,7 @@ namespace AccountDeduplication.LoadDatabase;
 public class LoaderAndProcessor(Func<DbContext> contextFactory)
 {
 
-    public async Task LoadDatabaseAndSaveAccounts(string inputFile, string groupingPrefix = null, string outputFile = null)
+    public async Task LoadDatabaseAndSaveAccounts(string inputFile, string groupingContains = null, string outputFile = null)
     {
         Console.WriteLine("Loading Csv");
 
@@ -17,13 +17,13 @@ public class LoaderAndProcessor(Func<DbContext> contextFactory)
 
         Console.WriteLine($"Total Accounts {accounts.Count}");
         List<Account> accountsToSave;
-        if (groupingPrefix != null)
+        if (groupingContains != null)
         {
             accountsToSave = accounts
                 .AsParallel()
                 .Select(ToAccount)
                 .Where(m => !string.IsNullOrWhiteSpace(m.GroupingCityState) &&
-                            m.GroupingCityState.Contains(groupingPrefix))
+                            m.GroupingCityState.Contains(groupingContains))
                 .ToList();
         }
         else
@@ -84,10 +84,17 @@ public class LoaderAndProcessor(Func<DbContext> contextFactory)
             BillingCity = csvModel.BillingCity,
             ShippingPostalCode = csvModel.ShippingPostalCode,
             BillingPostalCode = csvModel.BillingPostalCode,
-            GroupingCityState = CityStateBlocker.GetGroupingKey(
+            GroupingCityState = csvModel.IsPersonAccount ? CityStateBlocker.GetGroupingKey(
+                billingHouse,
+                csvModel.BillingCity ?? csvModel.ShippingCity,
+                csvModel.BillingState ?? csvModel.ShippingStreet,
+                billingUnit)
+            : CityStateBlocker.GetGroupingKey(
                billingHouse,
                csvModel.BillingCity ?? csvModel.ShippingCity,
-               csvModel.BillingState ?? csvModel.ShippingState)
+               csvModel.BillingState ?? csvModel.ShippingState),
+            FirstName = csvModel.FirstName,
+            LastName = csvModel.LastName
 
         };
         return account;
