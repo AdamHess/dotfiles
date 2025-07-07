@@ -45,37 +45,27 @@ public static class CityStateBlocker
 
     // Final blocking key using both city and state
     public static string GetGroupingKey(
+        string accountType,
         string house,
         string city,
-        string state)
+        string state,
+        string unit)
     {
-        if (string.IsNullOrWhiteSpace(city) || string.IsNullOrWhiteSpace(state))
-            return null;
-
         if (!CityStateListMap.StateMap.TryGetValue(state.ToLowerInvariant(), out var normalizedState))
         {
             var closestMatch = Process.ExtractOne(state.ToLowerInvariant(), CityStateListMap.LowercasedStateNames);
-            if (closestMatch.Score < 85)
+            if (closestMatch.Score > 85)
             {
                 return null; // No good match found 
             }
-            normalizedState = closestMatch.Value;
+
         }
         var cityCode = GetGroupingPair(city);
         var stateCode = GetTokenSetKey(normalizedState);
 
-        return $"{stateCode}|{cityCode}|{house}";
+        return $"{accountType}|{stateCode}|{cityCode}|{house}|{unit}";
     }
 
-    public static string GetGroupingKey(
-        string house,
-        string city,
-        string state,
-
-        string unit)
-    {
-        return $"{GetGroupingKey(house, city, state)}|{unit}";
-    }
 
     public static string GetGroupingPair(string toPair)
     {

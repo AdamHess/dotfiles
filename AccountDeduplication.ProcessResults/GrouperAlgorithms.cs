@@ -3,7 +3,6 @@ using AccountDeduplication.DAL.EF;
 using AccountDeduplication.DAL.Models;
 using AccountDeduplication.RecordLoggers;
 using Microsoft.EntityFrameworkCore;
-
 namespace AccountDeduplication.ProcessResults
 {
     public class GrouperAlgorithms(Func<AccountDedupeDb> contextFactory, string outputDirectory)
@@ -15,55 +14,33 @@ namespace AccountDeduplication.ProcessResults
             var allMatchRates = await GetMatchRatesForGroupingKey(groupingPrefix);
             var phase1Results = Phase1(allMatchRates);
             Console.WriteLine($"Phase 1 Groups {phase1Results.Count}");
-            await SaveResultsToFile(Path.Join(outputDirectory, "Phase1Results.csv"), phase1Results);
+            await SaveResultsToFile(Path.Join(outputDirectory, "Phase1ResultsPerson.csv"), phase1Results.Where(m => m.GroupLeader.IsPersonAccount).ToList());
+            await SaveResultsToFile(Path.Join(outputDirectory, "Phase1ResultsBusiness.csv"), phase1Results.Where(m => !m.GroupLeader.IsPersonAccount).ToList());
             var phase2 = Phase2(allMatchRates, phase1Results);
-            await SaveResultsToFile(Path.Join(outputDirectory, "Phase2Results.csv"), phase2);
+            await SaveResultsToFile(Path.Join(outputDirectory, "Phase2ResultsPerson.csv"), phase2.Where(m => m.GroupLeader.IsPersonAccount).ToList());
+            await SaveResultsToFile(Path.Join(outputDirectory, "Phase2ResultsBusiness.csv"), phase2.Where(m => !m.GroupLeader.IsPersonAccount).ToList());
             var phase3 = Phase3(allMatchRates, phase2);
-            await SaveResultsToFile(Path.Join(outputDirectory, "Phase3Results.csv"), phase3);
+            await SaveResultsToFile(Path.Join(outputDirectory, "Phase3ResultsPerson.csv"), phase3.Where(m => m.GroupLeader.IsPersonAccount).ToList());
+            await SaveResultsToFile(Path.Join(outputDirectory, "Phase3ResultsBusiness.csv"), phase3.Where(m => !m.GroupLeader.IsPersonAccount).ToList());
             var phase4 = Phase4(allMatchRates, phase3);
-            await SaveResultsToFile(Path.Join(outputDirectory, "Phase4Results.csv"), phase4);
+            await SaveResultsToFile(Path.Join(outputDirectory, "Phase4ResultsPerson.csv"), phase4.Where(m => m.GroupLeader.IsPersonAccount).ToList());
+            await SaveResultsToFile(Path.Join(outputDirectory, "Phase4ResultsBusiness.csv"), phase4.Where(m => !m.GroupLeader.IsPersonAccount).ToList());
 
-            await GenerateDataLoadFile("D:/SalesforceDataload.csv", phase4);
+            await GenerateDataLoadFile<DataLoadModelPerson>("D:/SalesforceDataloadPerson.csv", phase4.Where(m => m.GroupLeader.IsPersonAccount).ToList());
+            await GenerateDataLoadFile<DataLoadModelBusiness>("D:/SalesforceDataloadBusiness.csv", phase4.Where(m => !m.GroupLeader.IsPersonAccount).ToList());
         }
-
-        private static async Task GenerateDataLoadFile(string salesforceCsvName, List<GroupMapping> groupings)
+        private static async Task GenerateDataLoadFile<T>(string salesforceCsvName, List<GroupMapping> groupings) where T : DataloadBaseModel, new()
         {
-            await using CsvLogger<DataLoadModel> csvLogger = new(salesforceCsvName);
-
-
-            foreach (var group in groupings)
+            await using CsvLogger<T> csvLogger = new(salesforceCsvName);
+            var entries = groupings.SelectMany(m => m.GroupMembers.Select(n =>
             {
-                foreach (var account in group.GroupMembers.DistinctBy(m => m.Id))
-                {
-                    var model = new DataLoadModel()
-                    {
-                        Id = account.Id,
-                        Name = group.GroupLeader.IsPersonAccount && group.GroupLeader.Name != account.Name ? group.GroupLeader.Name : null,
-                        OtherOrgName =
-                            group.GroupLeader.OtherOrgName != account.OtherOrgName
-                                ? group.GroupLeader.OtherOrgName
-                                : null,
-                        BillingAddress = group.GroupLeader.BillingStreetRaw != account.BillingStreetRaw
-                            ? group.GroupLeader.BillingStreetRaw
-                            : null,
-                        ShippingAddress =
-                            group.GroupLeader.ShippingStreetRaw != account.ShippingStreetRaw
-                                ? group.GroupLeader.ShippingStreetRaw
-                                : null,
-                        FirstName = group.GroupLeader.FirstName != account.FirstName
-                            ? group.GroupLeader.FirstName
-                            : null,
-                        LastName = group.GroupLeader.LastName != account.LastName
-                            ? group.GroupLeader.LastName
-                            : null
-                    };
-                    if (model.AnyNonNullVals())
-                    {
-                        await csvLogger.AddEntryAsync(model);
-                    }
-                }
-            }
+                var entry = new T();
+                entry.Initialize(n, m.GroupLeader);
+                return entry;
+            })).ToList(); // Ensure the result is materialized into a list.
+            await csvLogger.AddEntriesAsync(entries);
         }
+
 
         private static async Task SaveResultsToFile(string fileName, List<GroupMapping> groupingResults)
         {

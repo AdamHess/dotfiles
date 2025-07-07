@@ -85,7 +85,7 @@ public class MatchCalculator
                 }
                 else
                 {
-                    if (processed % 100000 == 0)
+                    if (processed % 1_000_000 == 0)
                     {
                         // Estimate global time left
                         var globalElapsed = globalStopwatch.Elapsed.TotalSeconds;

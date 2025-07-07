@@ -84,15 +84,12 @@ public class LoaderAndProcessor(Func<DbContext> contextFactory)
             BillingCity = csvModel.BillingCity,
             ShippingPostalCode = csvModel.ShippingPostalCode,
             BillingPostalCode = csvModel.BillingPostalCode,
-            GroupingCityState = csvModel.IsPersonAccount ? CityStateBlocker.GetGroupingKey(
+            GroupingCityState = CityStateBlocker.GetGroupingKey(csvModel.RecordTypeName,
                 billingHouse,
                 csvModel.BillingCity ?? csvModel.ShippingCity,
                 csvModel.BillingState ?? csvModel.ShippingStreet,
-                billingUnit)
-            : CityStateBlocker.GetGroupingKey(
-               billingHouse,
-               csvModel.BillingCity ?? csvModel.ShippingCity,
-               csvModel.BillingState ?? csvModel.ShippingState),
+                billingUnit),
+
             FirstName = csvModel.FirstName,
             LastName = csvModel.LastName
 

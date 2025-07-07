@@ -6,6 +6,6 @@ namespace AccountDeduplication.ProcessResults
     {
         public Account GroupLeader { get; set; }
 
-        public IList<Account> GroupMembers { get; set; } = [];
+        public List<Account> GroupMembers { get; set; } = [];
     }
 }
