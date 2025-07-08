@@ -1,5 +1,6 @@
 ﻿using AccountDeduplication.CsvModels;
 using AccountDeduplication.DAL.Models;
+using AccountDeduplication.Parquet;
 using AccountDeduplication.RecordLoggers;
 using EFCore.BulkExtensions;
 using Microsoft.EntityFrameworkCore;
@@ -8,8 +9,83 @@ namespace AccountDeduplication.LoadDatabase;
 
 public class LoaderAndProcessor(Func<DbContext> contextFactory)
 {
+    private DbLogger<Account> DbLogger { get; } = new(contextFactory);
+    public async Task LoadDatabaseAndSaveAccounts(string inputFile, 
+        string groupingContains = null, 
+        string outputFile = null)
+    {
+        List<Account> accountsToSave = [];
+        if (Path.GetExtension(inputFile) == ".csv")
+        {
+            accountsToSave = ProcessFileAsCSV(inputFile, groupingContains);   
+        }
+        else if (Path.GetExtension(inputFile) == ".parquet")
+        {
+            var binder = new ParquetBinder<AccountParquetModel>();
+            var results = await binder.ReadParallel(inputFile);
+            accountsToSave = results.AsParallel()
+                .Select(ToAccountFromParquet)
+                .ToList();
 
-    public async Task LoadDatabaseAndSaveAccounts(string inputFile, string groupingContains = null, string outputFile = null)
+        }
+        
+        await SaveOrUpdateAccountsToDb(accountsToSave);
+
+        // Console.WriteLine($"Accounts to Save {accountsToSave.Count}");
+        // await SaveOrUpdateAccountsToDb(accountsToSave);
+        // if (outputFile != null)
+        // {
+        //     await using var csvLogger = new CsvLogger<AccountCsvModel>(outputFile);
+        //     await csvLogger.AddEntriesAsync(accounts.Where(m => accountsToSave.Any(n => n.Id == m.Id)));
+        // }
+    }
+
+    private Account ToAccountFromParquet(AccountParquetModel parquetModel)
+    {
+        var (billingHouse, billingStreet, billingUnit) = AddressParser.GetAddressParts(parquetModel.BillingStreet);
+        var (shippingHouse, shippingStreet, shippingUnit) = AddressParser.GetAddressParts(parquetModel.ShippingStreet);
+
+
+
+        var account = new Account
+        {
+            Id = parquetModel.Id,
+            Name = parquetModel.Name,
+            BillingStreetRaw = parquetModel.BillingStreet,
+            BillingStreetNormalized = AddressParser.NormalizeAddress(parquetModel.BillingStreet),
+            BillingHouseNumber = billingHouse,
+            BillingStreet = billingStreet,
+            BillingUnit = billingUnit,
+            ShippingStreetRaw = parquetModel.ShippingStreet,
+            ShippingStreetNormalized = AddressParser.NormalizeAddress(parquetModel.ShippingStreet),
+            ShippingHouseNumber = shippingHouse,
+            ShippingStreet = shippingStreet,
+            ShippingUnit = shippingUnit,
+            RecordTypeName = parquetModel.RecordTypeName,
+            OtherOrgName = parquetModel.AccountNameDba2,
+            NumberOfRoles = parquetModel.OfRoles,
+            NPI = parquetModel.Npi,
+            ShippingState = parquetModel.ShippingState,
+            BillingState = parquetModel.BillingState,
+            ShippingCity = parquetModel.ShippingCity,
+            BillingCity = parquetModel.BillingCity,
+            ShippingPostalCode = parquetModel.ShippingPostalCode,
+            BillingPostalCode = parquetModel.BillingPostalCode,
+            GroupingCityState = CityStateBlocker.GetGroupingKey(parquetModel.RecordTypeName,
+                billingHouse,
+                parquetModel.BillingCity ?? parquetModel.ShippingCity,
+                parquetModel.BillingState ?? parquetModel.ShippingStreet,
+                billingUnit),
+
+            FirstName = parquetModel.CaseFirstName,
+            LastName = parquetModel.CaseLastName,
+
+        };
+        DbLogger.AddEntryAsync(account).GetAwaiter().GetResult();
+        return account;    
+    }
+
+    private static List<Account> ProcessFileAsCSV(string inputFile, string groupingContains)
     {
         Console.WriteLine("Loading Csv");
 
@@ -21,7 +97,7 @@ public class LoaderAndProcessor(Func<DbContext> contextFactory)
         {
             accountsToSave = accounts
                 .AsParallel()
-                .Select(ToAccount)
+                .Select(ToAccountFromCsv)
                 .Where(m => !string.IsNullOrWhiteSpace(m.GroupingCityState) &&
                             m.GroupingCityState.Contains(groupingContains))
                 .ToList();
@@ -30,18 +106,11 @@ public class LoaderAndProcessor(Func<DbContext> contextFactory)
         {
             accountsToSave = accounts
                 .AsParallel()
-                .Select(ToAccount)
+                .Select(ToAccountFromCsv)
                 .ToList();
         }
 
-
-        Console.WriteLine($"Accounts to Save {accountsToSave.Count}");
-        await SaveOrUpdateAccountsToDb(accountsToSave);
-        if (outputFile != null)
-        {
-            await using var csvLogger = new CsvLogger<AccountCsvModel>(outputFile);
-            await csvLogger.AddEntriesAsync(accounts.Where(m => accountsToSave.Any(n => n.Id == m.Id)));
-        }
+        return accountsToSave;
     }
 
 
@@ -53,7 +122,7 @@ public class LoaderAndProcessor(Func<DbContext> contextFactory)
 
 
 
-    public static Account ToAccount(AccountCsvModel csvModel)
+    public static Account ToAccountFromCsv(AccountCsvModel csvModel)
     {
         var (billingHouse, billingStreet, billingUnit) = AddressParser.GetAddressParts(csvModel.BillingStreet);
         var (shippingHouse, shippingStreet, shippingUnit) = AddressParser.GetAddressParts(csvModel.ShippingStreet);

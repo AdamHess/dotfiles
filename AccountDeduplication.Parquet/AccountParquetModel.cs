@@ -1,0 +1,62 @@
+﻿namespace AccountDeduplication.Parquet;
+
+public class AccountParquetModel
+{
+    public string Account { get; set; }
+    public string AccountNameDba2 { get; set; }
+    public string AdditionalContactPhone { get; set; }
+    public string AdditionalContactPhoneUnformatted { get; set; }
+    public bool? Bankruptcy { get; set; }
+    public string BillingCity { get; set; }
+    public string BillingCountry { get; set; }
+    public double? BillingLatitude { get; set; }
+    public double? BillingLongitude { get; set; }
+    public string BillingPostalCode { get; set; }
+    public string BillingState { get; set; }
+    public string BillingStreet { get; set; }
+    public string BusinessDisplayName { get; set; }
+    public string CaseFirstName { get; set; }
+    public string CaseLastName { get; set; }
+    public string Category { get; set; }
+    public string ClientEmail { get; set; }
+    public DateTime? ClientPortalLastLogin { get; set; }
+    public string ClientPortalLastLoginType { get; set; }
+    public double? ClientSAge { get; set; }
+    public string ClientSEmployer { get; set; }
+    public DateTime? CreatedDate { get; set; }
+    public string DataStewardReview { get; set; }
+    public DateTime? DateOfBirth { get; set; }
+    public string DoingBusinessAs { get; set; }
+    public string EntityTypeCode { get; set; }
+    public string Gender { get; set; }
+    public double? HowManyFeloniesPc { get; set; }
+    public string Id { get; set; }
+    public string Industry { get; set; }
+    public bool? IsCustomerPortal { get; set; }
+    public bool? IsDeleted { get; set; }
+    public bool? IsSub { get; set; }
+    public DateTime? LastModifiedDate { get; set; }
+    public DateTime? LastUpdatedDate { get; set; }
+    public string MaritalStatus { get; set; }
+    public string MobilePhoneUnformattedFormulaPc { get; set; }
+    public string Name { get; set; }
+    public string Npi { get; set; }
+    public int OfRoles { get; set; }
+    public string PersonMobilePhone { get; set; }
+    public string Phone { get; set; }
+    public string PhoneUnformattedFormula { get; set; }
+    public string RecordTypeName { get; set; }
+    public string ShippingCity { get; set; }
+    public string ShippingCountry { get; set; }
+    public string ShippingGeocodeAccuracy { get; set; }
+    public double? ShippingLatitude { get; set; }
+    public double? ShippingLongitude { get; set; }
+    public string ShippingPostalCode { get; set; }
+    public string ShippingState { get; set; }
+    public string ShippingStreet { get; set; }
+    public string SpousePartnerName { get; set; }
+    public string SubType { get; set; }
+    public string Type { get; set; }
+    public bool? Unhoused { get; set; }
+    public string WorkPhone { get; set; }
+}
