@@ -9,11 +9,12 @@ namespace AccountDeduplication.LoadDatabase;
 
 public class LoaderAndProcessor(Func<DbContext> contextFactory)
 {
-    private DbLogger<Account> DbLogger { get; } = new(contextFactory);
+    private DbLogger<Account> DbLogger { get; set; } 
     public async Task LoadDatabaseAndSaveAccounts(string inputFile, 
         string groupingContains = null, 
         string outputFile = null)
     {
+        DbLogger = new DbLogger<Account>(contextFactory);
         List<Account> accountsToSave = [];
         if (Path.GetExtension(inputFile) == ".csv")
         {
@@ -22,14 +23,13 @@ public class LoaderAndProcessor(Func<DbContext> contextFactory)
         else if (Path.GetExtension(inputFile) == ".parquet")
         {
             var binder = new ParquetBinder<AccountParquetModel>();
-            var results = await binder.ReadParallel(inputFile);
-            accountsToSave = results.AsParallel()
+            accountsToSave =  binder.ReadParallel(inputFile).AsParallel()
+                .SelectMany(m => m)
                 .Select(ToAccountFromParquet)
                 .ToList();
-
         }
         
-        await SaveOrUpdateAccountsToDb(accountsToSave);
+        // await SaveOrUpdateAccountsToDb(accountsToSave);
 
         // Console.WriteLine($"Accounts to Save {accountsToSave.Count}");
         // await SaveOrUpdateAccountsToDb(accountsToSave);
@@ -38,6 +38,7 @@ public class LoaderAndProcessor(Func<DbContext> contextFactory)
         //     await using var csvLogger = new CsvLogger<AccountCsvModel>(outputFile);
         //     await csvLogger.AddEntriesAsync(accounts.Where(m => accountsToSave.Any(n => n.Id == m.Id)));
         // }
+        await DbLogger.DisposeAsync();
     }
 
     private Account ToAccountFromParquet(AccountParquetModel parquetModel)

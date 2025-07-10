@@ -10,12 +10,14 @@
     <PackageReference Include="AddressParser" Version="1.0.3" />
     <PackageReference Include="FuzzySharp" Version="2.0.2" />
     <PackageReference Include="Phonix" Version="1.0.2" />
+    <PackageReference Include="System.Linq.Async" Version="6.0.3" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\AccountDeduplication.DAL\AccountDeduplication.DAL.EF.csproj" />
     <ProjectReference Include="..\AccountDeduplication.InterableExtensions\AccountDeduplication.IterableExtensions.csproj" />
     <ProjectReference Include="..\AccountDeduplication.Models\AccountDeduplication.CsvModels.csproj" />
+    <ProjectReference Include="..\AccountDeduplication.Parquet\AccountDeduplication.Parquet.csproj" />
     <ProjectReference Include="..\AccountDeduplication.RecordLoggers\AccountDeduplication.RecordLoggers.csproj" />
   </ItemGroup>
 

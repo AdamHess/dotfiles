@@ -23,42 +23,33 @@ public class ParquetBinder<T> where T : class, new()
         public Type TargetType { get; set; }
     }
 
-    public async Task<List<AccountParquetModel>> ReadParallel(string filePath)
+    public IEnumerable<IList<T>> ReadParallel(string filePath)
     {
-        await using var stream = File.OpenRead(filePath);
-        using var reader = await ParquetReader.CreateAsync(stream);
-        var results = new List<AccountParquetModel>();
+        using var stream = File.OpenRead(filePath);
+        using var reader = ParquetReader.CreateAsync(stream).GetAwaiter().GetResult();
+
         foreach (var i in Enumerable.Range(0, reader.RowGroupCount))
         {
-            var resultsForGroup = await ProcessRowGroupAsync(reader, i);
-            results.AddRange((IEnumerable<AccountParquetModel>)resultsForGroup);
+            var resultsForGroup =  ProcessRowGroup(reader, i);
+            Console.WriteLine($"Read Group {i}/{reader.RowGroupCount} with {resultsForGroup.Count} records");
+            yield return resultsForGroup;
         }
+            
+     
 
-        return results;
     }
 
-    public async Task ProcessStream(string filePath, Func<T, Task> processor)
-    {
-        await using var stream = File.OpenRead(filePath);
-        using var reader = await ParquetReader.CreateAsync(stream);
-
-        var tasks = Enumerable.Range(0, reader.RowGroupCount)
-            .Select(i => Task.Run(async () =>
-            {
-                var records = await ProcessRowGroupAsync(reader, i);
-                await Task.WhenAll(records.Select(processor));
-            }));
-
-        await Task.WhenAll(tasks);
-    }
-
-    private async Task<List<T>> ProcessRowGroupAsync(ParquetReader reader, int rowGroupIndex)
+  
+    private List<T> ProcessRowGroup(ParquetReader reader, int rowGroupIndex)
     {
         using var groupReader = reader.OpenRowGroupReader(rowGroupIndex);
         var columns = new Dictionary<string, Array>();
 
         foreach (var field in reader.Schema.GetDataFields())
-            columns[field.Name] = (await groupReader.ReadColumnAsync(field))?.Data;
+            columns[field.Name] = (groupReader.ReadColumnAsync(field))
+                .GetAwaiter()
+                .GetResult()
+                ?.Data;
 
         var validMappings = _cachedMappings.Value.Where(m => columns.ContainsKey(m.ColumnName)).ToArray();
         int rowCount = columns.Values.FirstOrDefault()?.Length ?? 0;

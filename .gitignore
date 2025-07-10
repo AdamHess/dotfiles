@@ -5,7 +5,9 @@
 
 # dotenv files
 .env
-
+*.db
+*.csv
+*.parquet
 # User-specific files
 *.rsuser
 *.suo

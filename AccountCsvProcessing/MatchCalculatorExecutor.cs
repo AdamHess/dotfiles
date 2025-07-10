@@ -17,7 +17,7 @@ public class MatchCalculatorExecutor(Func<AccountDedupeDb> dbContextFactory)
         var matchCalculator = new MatchCalculator();
         Console.WriteLine("Getting Unprocessed Groups");
 
-        var accountGroups = await GetAccountGroups(groupingPrefix);
+        var accountGroups = await GetAllGroupKeysAndCount(groupingPrefix);
         Console.WriteLine("Starting Calculator");
 
         await matchCalculator.ExecuteAsync(
@@ -51,6 +51,25 @@ public class MatchCalculatorExecutor(Func<AccountDedupeDb> dbContextFactory)
         Console.WriteLine($"Total # of Groups {results.Count}");
         return results;
 
+    }
+    
+    public async Task<List<IGrouping<string, Account>>> GetAllGroupKeysAndCount(string groupingPrefix = null)
+    {
+        await using var db = dbContextFactory();
+        var query = db.Accounts.AsQueryable();
+
+        if (groupingPrefix != null)
+        {
+            query = query.Where(m => m.GroupingCityState.StartsWith(groupingPrefix));
+        }
+
+        var results = await query
+            .GroupBy(m => m.GroupingCityState)
+            // .Select(g => new { GroupKey = g.Key, Count = g.Count() })
+            .ToListAsync();
+
+        // return results.Select(m => (groupKey: m.GroupKey, count: m.Count)).ToList();
+        return results;
     }
 
 }
