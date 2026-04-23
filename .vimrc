@@ -1,2 +1,1 @@
-syntax enable
-set number
+config/vim/.vimrc
