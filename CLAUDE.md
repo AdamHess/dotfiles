@@ -32,3 +32,4 @@ Use this file as the entry point for coding and review behavior. Keep guidance s
 
 - Style profile: `claude/context/personal-style-from-docr.md`
 - Actionable rules: `claude/standards/personal-rules.md`
+- Code review examples: `claude/review/code-review-examples.md` (10 concrete patterns with made-up code)
