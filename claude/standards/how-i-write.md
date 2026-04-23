@@ -10,16 +10,16 @@ Extracted from my review patterns. These are my personal implementation guidelin
 
 ```python
 # Don't do this
-def score_case(s, w, t):
+def score_user(s, w, t):
     return s * w > t
 
 # Do this
-def score_case(confidence_score: float, weight_multiplier: float, approval_threshold: float) -> bool:
-    return confidence_score * weight_multiplier > approval_threshold
+def score_user(engagement_score: float, weight_multiplier: float, approval_threshold: float) -> bool:
+    return engagement_score * weight_multiplier > approval_threshold
 ```
 
 Names should answer:
-- **What is this?** (not `s`, but `confidence_score`)
+- **What is this?** (not `s`, but `engagement_score`)
 - **What's its range?** (0-1? 0-100? unbounded?)
 - **What's the domain?** (it's a score in what context?)
 
@@ -27,11 +27,11 @@ Names should answer:
 
 ```python
 # Don't do this
-def process_doc(doc):
+def process_data(obj):
     ...
 
 # Do this
-def fetch_and_validate_docket_entry(entry_id: str, dynamodb_table: Table) -> DocketEntry:
+def fetch_and_validate_user_profile(user_id: str, database: Database) -> UserProfile:
     ...
 ```
 
@@ -46,29 +46,29 @@ Function names describe the contract, not the implementation. Callers should und
 
 ```python
 # Don't do this
-def process_and_cache_document(doc_id, bucket, table):
-    doc = s3.get_object(Bucket=bucket, Key=doc_id)
-    parsed = parse_pdf(doc['Body'].read())
-    item = {'id': doc_id, 'text': parsed['text']}
+def process_and_store_order(order_id, bucket, table):
+    data = s3.get_object(Bucket=bucket, Key=order_id)
+    parsed = parse_json(data['Body'].read())
+    item = {'id': order_id, 'content': parsed['content']}
     table.put_item(Item=item)
-    notify_downstream(doc_id, item)
+    notify_downstream(order_id, item)
     return item
 
 # Do this
-def fetch_from_s3(doc_id: str, bucket: str) -> bytes:
-    response = s3.get_object(Bucket=bucket, Key=doc_id)
+def fetch_from_storage(order_id: str, bucket: str) -> bytes:
+    response = s3.get_object(Bucket=bucket, Key=order_id)
     return response['Body'].read()
 
-def parse_document(raw_bytes: bytes) -> ParsedDocument:
-    return ParsedDocument.model_validate(parse_pdf(raw_bytes))
+def parse_order(raw_bytes: bytes) -> ParsedOrder:
+    return ParsedOrder.model_validate(parse_json(raw_bytes))
 
-def save_to_cache(doc: ParsedDocument, table: Table) -> None:
-    table.put_item(Item={'id': doc.id, 'text': doc.text})
+def save_to_database(order: ParsedOrder, table: Table) -> None:
+    table.put_item(Item={'id': order.id, 'content': order.content})
 
 # Caller orchestrates
-doc_bytes = fetch_from_s3(doc_id, bucket)
-parsed = parse_document(doc_bytes)
-save_to_cache(parsed, table)
+order_bytes = fetch_from_storage(order_id, bucket)
+parsed = parse_order(order_bytes)
+save_to_database(parsed, table)
 notify_downstream(parsed.id, parsed)
 ```
 
@@ -80,19 +80,19 @@ Each function has one reason to change. When you can't name it simply, it's doin
 
 ```python
 # Don't do this
-def save_document(doc, table, archive=False):
-    if archive:
-        doc['status'] = 'archived'
-    table.put_item(Item=doc)
+def save_record(record, table, is_deleted=False):
+    if is_deleted:
+        record['status'] = 'deleted'
+    table.put_item(Item=record)
 
 # Do this
-def save_active_document(doc: Document, table: Table) -> None:
-    doc_item = {'id': doc.id, 'status': 'active', 'data': doc.data}
-    table.put_item(Item=doc_item)
+def save_active_record(record: Record, table: Table) -> None:
+    record_item = {'id': record.id, 'status': 'active', 'data': record.data}
+    table.put_item(Item=record_item)
 
-def save_archived_document(doc: Document, table: Table) -> None:
-    doc_item = {'id': doc.id, 'status': 'archived', 'data': doc.data}
-    table.put_item(Item=doc_item)
+def save_deleted_record(record: Record, table: Table) -> None:
+    record_item = {'id': record.id, 'status': 'deleted', 'data': record.data}
+    table.put_item(Item=record_item)
 ```
 
 Boolean parameters hide branching. Split into two clear functions instead. The caller decides which one to call.
@@ -103,28 +103,28 @@ Boolean parameters hide branching. Split into two clear functions instead. The c
 
 ```python
 # Don't do this
-def get_case_prediction(case_data, model):
-    if not case_data.get('total_damages'):
+def get_score(data, model):
+    if not data.get('amount'):
         return None
-    features = extract_features(case_data)
+    features = extract_features(data)
     return model.predict(features)[0]
 
 # Do this
-class CaseFeatures(BaseModel):
-    total_damages: float
-    liability_assigned: bool
-    treatment_recommended: bool
+class DataInput(BaseModel):
+    amount: float
+    is_active: bool
+    has_flag: bool
 
-class Prediction(BaseModel):
+class Score(BaseModel):
     value: float
     confidence: float
 
-def get_case_prediction(case: CaseFeatures, model: Model) -> Prediction | None:
-    if case.total_damages <= 0:
+def get_score(data: DataInput, model: Model) -> Score | None:
+    if data.amount <= 0:
         return None
-    features = extract_features(case)
+    features = extract_features(data)
     result = model.predict(features)
-    return Prediction.model_validate(result)
+    return Score.model_validate(result)
 ```
 
 - Use Pydantic models for structured data, never `dict`.
@@ -137,11 +137,11 @@ def get_case_prediction(case: CaseFeatures, model: Model) -> Prediction | None:
 
 ```python
 # Don't do this
-def calculate_settlement(case):
-    if case.total_damages is not None:
-        if case.liability_assigned:
-            if case.treatment_recommended:
-                return case.total_damages * LIABILITY_FACTOR
+def calculate_result(obj):
+    if obj.value is not None:
+        if obj.is_active:
+            if obj.has_flag:
+                return obj.value * MULTIPLIER
             else:
                 return 0
         else:
@@ -150,14 +150,14 @@ def calculate_settlement(case):
         return None
 
 # Do this
-def calculate_settlement(case: Case) -> float | None:
-    if case.total_damages is None:
+def calculate_result(obj: DataObject) -> float | None:
+    if obj.value is None:
         return None
-    if not case.liability_assigned:
+    if not obj.is_active:
         return 0.0
-    if not case.treatment_recommended:
+    if not obj.has_flag:
         return 0.0
-    return case.total_damages * LIABILITY_FACTOR
+    return obj.value * MULTIPLIER
 ```
 
 Early returns flatten nesting. Code flows top-to-bottom: invalid states first, success path last.
@@ -168,35 +168,35 @@ Early returns flatten nesting. Code flows top-to-bottom: invalid states first, s
 
 ```python
 # Don't do this
-class DocumentCache:
-    def get(self, doc_id):
-        if doc_id in self._cache:
-            return self._cache[doc_id]
-        item = self._table.get_item(Key={'id': doc_id})
-        self._cache[doc_id] = item
+class Cache:
+    def get(self, key):
+        if key in self._cache:
+            return self._cache[key]
+        item = self._store.get(key)
+        self._cache[key] = item
         return item
     
-    def set(self, doc_id, value):
-        self._cache[doc_id] = value
-        self._table.put_item(Item={'id': doc_id, 'data': value})
+    def set(self, key, value):
+        self._cache[key] = value
+        self._store.put(key, value)
 
 # Caller knows about two layers, inconsistent behavior
 
 # Do this
-class DocumentCache:
-    def fetch(self, doc_id: str) -> Document | None:
-        """Fetch document with transparent two-tier caching."""
-        if cached := self._local_cache.get(doc_id):
+class Cache:
+    def fetch(self, key: str) -> Item | None:
+        """Fetch item with transparent two-tier caching."""
+        if cached := self._local_cache.get(key):
             return cached
-        item = self._table.get_item(Key={'id': doc_id})
+        item = self._store.get(key)
         if item:
-            self._local_cache[doc_id] = item
+            self._local_cache[key] = item
         return item
     
-    def invalidate(self, doc_id: str) -> None:
-        """Clear document from all cache layers."""
-        self._local_cache.pop(doc_id, None)
-        # DynamoDB cache invalidation handled separately by TTL
+    def invalidate(self, key: str) -> None:
+        """Clear item from all cache layers."""
+        self._local_cache.pop(key, None)
+        # Backend invalidation handled by TTL
 
 # Caller doesn't care about layers
 ```
@@ -209,41 +209,41 @@ Hide implementation details (`_local_cache`, tier logic). Public methods should 
 
 ```python
 # Don't do this
-def process_case_data(case_json):
+def process_input(json_data):
     try:
-        data = CaseData.model_validate(case_json)
-        result = predict(data)
+        data = Input.model_validate(json_data)
+        result = compute(data)
         table.put_item(Item=result.model_dump())
     except Exception:
         log.error("failed")
         return None
 
 # Don't do this
-def process_case_data(case_json):
+def process_input(json_data):
     try:
-        data = CaseData.model_validate(case_json)
+        data = Input.model_validate(json_data)
     except ValidationError as e:
-        log.warning("invalid case data", extra={"error": str(e)})
+        log.warning("invalid input", extra={"error": str(e)})
         return None
     except Exception as e:
         log.error("unexpected error", extra={"error": str(e)})
         raise
     
-    result = predict(data)  # let failures bubble up
+    result = compute(data)  # let failures bubble up
     table.put_item(Item=result.model_dump())
     return result
 
 # Do this
-def process_case_data(case_json: dict) -> Prediction | None:
-    """Process case data with graceful validation failure handling."""
+def process_input(json_data: dict) -> Result | None:
+    """Process input with graceful validation failure handling."""
     try:
-        data = CaseData.model_validate(case_json)
+        data = Input.model_validate(json_data)
     except ValidationError as e:
-        log.warning("Invalid case data format", extra={"error": str(e), "input": case_json})
+        log.warning("Invalid input format", extra={"error": str(e), "input": json_data})
         return None
     
     # These should fail loudly if broken; don't swallow them
-    result = predict(data)
+    result = compute(data)
     table.put_item(Item=result.model_dump())
     return result
 ```
@@ -258,28 +258,28 @@ def process_case_data(case_json: dict) -> Prediction | None:
 
 ```python
 # Don't do this
-def get_docket_entry(matter_id, entry_id, table):
-    response = table.get_item(Key={'pk': f'MATTER#{matter_id}', 'sk': f'ENTRY#{entry_id}'})
+def get_user(tenant_id, user_id, table):
+    response = table.get_item(Key={'pk': f'TENANT#{tenant_id}', 'sk': f'USER#{user_id}'})
     return response.get('Item')
 
-def get_document(matter_id, doc_id, table):
-    response = table.get_item(Key={'pk': f'MATTER#{matter_id}', 'sk': f'DOC#{doc_id}'})
+def get_config(tenant_id, config_id, table):
+    response = table.get_item(Key={'pk': f'TENANT#{tenant_id}', 'sk': f'CONFIG#{config_id}'})
     return response.get('Item')
 
-def get_audit_log(matter_id, log_id, table):
-    response = table.get_item(Key={'pk': f'MATTER#{matter_id}', 'sk': f'LOG#{log_id}'})
+def get_setting(tenant_id, setting_id, table):
+    response = table.get_item(Key={'pk': f'TENANT#{tenant_id}', 'sk': f'SETTING#{setting_id}'})
     return response.get('Item')
 
 # Do this
-def _build_dynamodb_key(matter_id: str, entity_type: str, entity_id: str) -> dict[str, str]:
-    return {'pk': f'MATTER#{matter_id}', 'sk': f'{entity_type}#{entity_id}'}
+def _build_key(tenant_id: str, entity_type: str, entity_id: str) -> dict[str, str]:
+    return {'pk': f'TENANT#{tenant_id}', 'sk': f'{entity_type}#{entity_id}'}
 
-def get_docket_entry(matter_id: str, entry_id: str, table: Table) -> dict | None:
-    response = table.get_item(Key=_build_dynamodb_key(matter_id, 'ENTRY', entry_id))
+def get_user(tenant_id: str, user_id: str, table: Table) -> dict | None:
+    response = table.get_item(Key=_build_key(tenant_id, 'USER', user_id))
     return response.get('Item')
 
-def get_document(matter_id: str, doc_id: str, table: Table) -> dict | None:
-    response = table.get_item(Key=_build_dynamodb_key(matter_id, 'DOC', doc_id))
+def get_config(tenant_id: str, config_id: str, table: Table) -> dict | None:
+    response = table.get_item(Key=_build_key(tenant_id, 'CONFIG', config_id))
     return response.get('Item')
 ```
 
@@ -291,23 +291,23 @@ When you copy code, you've found a missing abstraction. Extract it before the du
 
 ```python
 # Don't do this
-# Check if treatment severity is in valid range (0-5)
-if 0 <= score <= 5:
-    treatments.append(score)
+# Check if priority is in valid range (1-10)
+if 1 <= priority <= 10:
+    tasks.append(priority)
 
 # Do this
-VALID_TREATMENT_SEVERITY_RANGE = range(0, 6)  # 0-5 inclusive
+VALID_PRIORITY_RANGE = range(1, 11)  # 1-10 inclusive
 
-if score in VALID_TREATMENT_SEVERITY_RANGE:
-    treatments.append(score)
+if priority in VALID_PRIORITY_RANGE:
+    tasks.append(priority)
 
 # Or better, extract:
-def is_valid_treatment_severity(score: int) -> bool:
-    """Treatment severity must be 0-5 inclusive."""
-    return 0 <= score <= 5
+def is_valid_priority(priority: int) -> bool:
+    """Priority must be 1-10 inclusive."""
+    return 1 <= priority <= 10
 
-if is_valid_treatment_severity(score):
-    treatments.append(score)
+if is_valid_priority(priority):
+    tasks.append(priority)
 ```
 
 If you're about to write a comment, refactor instead:
@@ -323,22 +323,22 @@ The only exception: non-obvious constraints, contract boundaries, legal/complian
 
 ```python
 # Don't do this
-def test_prediction():
-    result = get_prediction({'total_damages': 100000})
+def test_compute():
+    result = compute({'amount': 100})
     assert result is not None
 
-def test_prediction_edge_case():
-    result = get_prediction({'total_damages': 0})
+def test_compute_edge_case():
+    result = compute({'amount': 0})
     assert result == 0
 
 # Do this
-def test_get_prediction_when_damages_provided_should_return_float():
-    result = get_prediction(CaseFeatures(total_damages=100000, ...))
+def test_compute_when_amount_provided_should_return_float():
+    result = compute(DataInput(amount=100, is_active=True))
     assert isinstance(result, float)
     assert result > 0
 
-def test_get_prediction_when_damages_zero_should_return_none():
-    result = get_prediction(CaseFeatures(total_damages=0, ...))
+def test_compute_when_amount_zero_should_return_none():
+    result = compute(DataInput(amount=0, is_active=True))
     assert result is None
 ```
 
@@ -352,36 +352,36 @@ Pattern: `test_<function>_when_<condition>_should_<outcome>`
 
 ```python
 # Don't do this
-def process_case_1(data):
+def call_api_1(data):
     try:
-        return internal_service_1(data)
-    except ServiceUnavailableError:
+        return service_1(data)
+    except ConnectionError:
         log.error("service_1 down")
         return None
 
-def process_case_2(data):
+def call_api_2(data):
     try:
-        return internal_service_2(data)
-    except ServiceUnavailableError:
+        return service_2(data)
+    except ConnectionError:
         log.error("service_2 down")
         return None
 
 # Do this
-def _handle_service_failure(service_name: str, error: ServiceUnavailableError) -> None:
+def _handle_connection_error(service_name: str, error: ConnectionError) -> None:
     log.error(f"Service unavailable", extra={"service": service_name, "error": str(error)})
 
-def process_case_1(data: CaseFeatures) -> Result | None:
+def call_api_1(data: DataInput) -> Result | None:
     try:
-        return internal_service_1(data)
-    except ServiceUnavailableError as e:
-        _handle_service_failure("internal_service_1", e)
+        return service_1(data)
+    except ConnectionError as e:
+        _handle_connection_error("service_1", e)
         return None
 
-def process_case_2(data: CaseFeatures) -> Result | None:
+def call_api_2(data: DataInput) -> Result | None:
     try:
-        return internal_service_2(data)
-    except ServiceUnavailableError as e:
-        _handle_service_failure("internal_service_2", e)
+        return service_2(data)
+    except ConnectionError as e:
+        _handle_connection_error("service_2", e)
         return None
 ```
 

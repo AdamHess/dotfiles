@@ -1,6 +1,6 @@
-# Code Review Examples: Adam's Style
+# Code Review Examples: How I Review
 
-Use these patterns when reviewing code. Each example shows a common issue and how to flag it explicitly.
+These are made-up code examples showing common patterns I flag during review. Not tied to any specific codebase.
 
 ---
 
@@ -8,25 +8,25 @@ Use these patterns when reviewing code. Each example shows a common issue and ho
 
 **Bad:**
 ```python
-def process_and_cache_document(doc_id, bucket, table):
-    doc = s3.get_object(Bucket=bucket, Key=doc_id)
-    parsed = parse_pdf(doc['Body'].read())
+def fetch_and_store_record(record_id, bucket, table):
+    doc = s3.get_object(Bucket=bucket, Key=record_id)
+    parsed = parse_content(doc['Body'].read())
     item = {
-      'id': doc_id,
-      'text': parsed['text'],
-      'pages': len(parsed['pages']),
-      'cache_hit': False,
+      'id': record_id,
+      'content': parsed['content'],
+      'page_count': len(parsed['pages']),
+      'cached': False,
     }
     table.put_item(Item=item)
-    notify_downstream(doc_id, item)
+    alert_subscribers(record_id, item)
     return item
 ```
 
 **Review Comment:**
-> This function owns retrieval, parsing, persistence, and downstream notifications. Split into:
-> - `fetch_from_s3(doc_id, bucket)` → bytes
-> - `parse_document(raw_bytes)` → ParsedDoc (Pydantic model)
-> - `save_to_cache(parsed_doc, table)` → None
+> This function owns retrieval, parsing, persistence, and notifications. Split into:
+> - `fetch_from_s3(record_id, bucket)` → bytes
+> - `parse_record(raw_bytes)` → ParsedRecord (Pydantic model)
+> - `save_to_table(parsed_record, table)` → None
 > - Leave notification to the caller.
 
 Each function should have one reason to change.
@@ -37,7 +37,7 @@ Each function should have one reason to change.
 
 **Bad:**
 ```python
-def evaluate_score(s, w, t):
+def check_approval(s, w, t):
     result = s * w
     if result > t:
         return True
@@ -46,12 +46,12 @@ def evaluate_score(s, w, t):
 
 **Review Comment:**
 > Rename for clarity:
-> - `s` → `confidence_score` (0-1 range? 0-100?)
-> - `w` → `weight_multiplier` (is this domain-specific?)
-> - `t` → `approval_threshold` (why is >threshold approval?)
+> - `s` → `approval_score` (0-1 range? 0-100?)
+> - `w` → `weight_factor` (is this domain-specific?)
+> - `t` → `threshold` (why is >threshold approval?)
 > - `result` → intermediate name; see if it disappears after refactor
 >
-> What is this actually doing? "Is confidence high enough after weighting?"
+> What is this actually doing? "Is score high enough after weighting?"
 
 ---
 
@@ -59,22 +59,22 @@ def evaluate_score(s, w, t):
 
 **Bad:**
 ```python
-def get_case_worth_prediction(case_data, model):
-    if not case_data.get('total_damages'):
+def calculate_bonus(employee_data, rate):
+    if not employee_data.get('salary'):
         return None
-    features = extract_features(case_data)
-    prediction = model.predict(features)
-    return prediction[0]
+    base = extract_salary(employee_data)
+    bonus = base * rate
+    return bonus
 ```
 
 **Review Comment:**
 > Add explicit type hints:
 >
 > ```python
-> def get_case_worth_prediction(case_data: dict, model: Model) -> float | None:
+> def calculate_bonus(employee_data: dict, rate: float) -> float | None:
 > ```
 >
-> But first: `case_data` should be a Pydantic model, not `dict`. Then the type is `CaseData`. Same for the return—is it a float, a Prediction object, or a range?
+> But first: `employee_data` should be a Pydantic model, not `dict`. Then the type is `EmployeeRecord`. Same for the return—is it a float, a BonusCalculation object, or a structured result?
 
 ---
 
@@ -82,24 +82,24 @@ def get_case_worth_prediction(case_data, model):
 
 **Bad:**
 ```python
-def save_document(doc, table, archive=False):
-    item = model_validate(doc)
-    if archive:
-        item['archived_at'] = utcnow()
-        item['status'] = 'archived'
-    table.put_item(Item=item)
+def save_item(item, table, is_archived=False):
+    record = model_validate(item)
+    if is_archived:
+        record['archived_at'] = utcnow()
+        record['state'] = 'archived'
+    table.put_item(Item=record)
 ```
 
 **Review Comment:**
-> The boolean `archive` is a code smell. This function has two distinct behaviors.
+> The boolean `is_archived` is a code smell. This function has two distinct behaviors.
 >
 > Split into:
 > ```python
-> def save_active_document(doc: Document, table: Table) -> None: ...
-> def save_archived_document(doc: Document, table: Table) -> None: ...
+> def save_active_item(item: Item, table: Table) -> None: ...
+> def save_archived_item(item: Item, table: Table) -> None: ...
 > ```
 >
-> Or restructure so the caller decides what `Document` looks like before calling `save_document`.
+> Or restructure so the caller decides what `Item` looks like before calling `save_item`.
 > The function name should say what it does, not what it conditionally might do.
 
 ---
@@ -108,12 +108,12 @@ def save_document(doc, table, archive=False):
 
 **Bad:**
 ```python
-def test_prediction():
-    result = get_prediction({'total_damages': 100000})
+def test_calculate():
+    result = calculate({'amount': 1000})
     assert result is not None
 
-def test_prediction_boundary():
-    result = get_prediction({'total_damages': 0})
+def test_calculate_boundary():
+    result = calculate({'amount': 0})
     assert result == 0
 ```
 
@@ -121,12 +121,12 @@ def test_prediction_boundary():
 > Rename to describe the scenario and expected outcome:
 >
 > ```python
-> def test_get_prediction_when_damages_provided_should_return_float():
->     result = get_prediction({'total_damages': 100000})
+> def test_calculate_when_amount_provided_should_return_float():
+>     result = calculate({'amount': 1000})
 >     assert isinstance(result, float)
 >
-> def test_get_prediction_when_damages_zero_should_return_none():
->     result = get_prediction({'total_damages': 0})
+> def test_calculate_when_amount_zero_should_return_none():
+>     result = calculate({'amount': 0})
 >     assert result is None
 > ```
 >
@@ -138,29 +138,29 @@ def test_prediction_boundary():
 
 **Bad:**
 ```python
-# Check if the value is in the valid range for treatment severity
-if 0 <= score <= 5:
-    treatments.append(score)
+# Check if the rating is in the accepted range for scores
+if 1 <= score <= 5:
+    ratings.append(score)
 ```
 
 **Review Comment:**
 > The comment restates what the code does. Instead, extract intent:
 >
 > ```python
-> VALID_TREATMENT_SEVERITY_RANGE = range(0, 6)
+> VALID_RATING_RANGE = range(1, 6)
 > 
-> if score in VALID_TREATMENT_SEVERITY_RANGE:
->     treatments.append(score)
+> if score in VALID_RATING_RANGE:
+>     ratings.append(score)
 > ```
 >
 > Or better, a named function:
 > ```python
-> def is_valid_treatment_severity(score):
->     """Treatment severity scores must be 0-5 inclusive."""
->     return 0 <= score <= 5
+> def is_valid_rating(score):
+>     """Rating must be 1-5 inclusive."""
+>     return 1 <= score <= 5
 >
-> if is_valid_treatment_severity(score):
->     treatments.append(score)
+> if is_valid_rating(score):
+>     ratings.append(score)
 > ```
 
 ---
@@ -169,15 +169,21 @@ if 0 <= score <= 5:
 
 **Bad:**
 ```python
-def get_docket_entry(matter_id, entry_id, dynamodb_table):
+def get_user_record(tenant_id, user_id, dynamodb_table):
     response = dynamodb_table.get_item(
-        Key={'pk': f'MATTER#{matter_id}', 'sk': f'ENTRY#{entry_id}'}
+        Key={'pk': f'TENANT#{tenant_id}', 'sk': f'USER#{user_id}'}
     )
     return response.get('Item')
 
-def get_document(matter_id, doc_id, dynamodb_table):
+def get_settings_record(tenant_id, setting_id, dynamodb_table):
     response = dynamodb_table.get_item(
-        Key={'pk': f'MATTER#{matter_id}', 'sk': f'DOC#{doc_id}'}
+        Key={'pk': f'TENANT#{tenant_id}', 'sk': f'SETTING#{setting_id}'}
+    )
+    return response.get('Item')
+
+def get_audit_record(tenant_id, audit_id, dynamodb_table):
+    response = dynamodb_table.get_item(
+        Key={'pk': f'TENANT#{tenant_id}', 'sk': f'AUDIT#{audit_id}'}
     )
     return response.get('Item')
 ```
@@ -186,14 +192,14 @@ def get_document(matter_id, doc_id, dynamodb_table):
 > DRY violation. Extract the key-building pattern:
 >
 > ```python
-> def _build_dynamodb_key(matter_id: str, entity_type: str, entity_id: str) -> dict:
+> def _build_dynamodb_key(tenant_id: str, entity_type: str, entity_id: str) -> dict:
 >     return {
->         'pk': f'MATTER#{matter_id}',
+>         'pk': f'TENANT#{tenant_id}',
 >         'sk': f'{entity_type}#{entity_id}'
 >     }
 >
-> def get_docket_entry(matter_id: str, entry_id: str, table: Table) -> dict | None:
->     response = table.get_item(Key=_build_dynamodb_key(matter_id, 'ENTRY', entry_id))
+> def get_user_record(tenant_id: str, user_id: str, table: Table) -> dict | None:
+>     response = table.get_item(Key=_build_dynamodb_key(tenant_id, 'USER', user_id))
 >     return response.get('Item')
 > ```
 
@@ -203,10 +209,10 @@ def get_document(matter_id, doc_id, dynamodb_table):
 
 **Bad:**
 ```python
-def process_case_data(case_json):
+def process_request(json_input):
     try:
-        data = CaseData.model_validate(case_json)
-        result = predict(data)
+        data = RequestData.model_validate(json_input)
+        result = compute(data)
         table.put_item(Item=result.model_dump())
     except Exception:
         log.error("failed")
@@ -217,14 +223,14 @@ def process_case_data(case_json):
 > `except Exception` is too broad; it catches programming errors (AttributeError, TypeError) alongside real failures.
 >
 > ```python
-> def process_case_data(case_json: dict) -> Prediction | None:
+> def process_request(json_input: dict) -> Result | None:
 >     try:
->         data = CaseData.model_validate(case_json)
+>         data = RequestData.model_validate(json_input)
 >     except ValidationError as e:
->         log.warning("invalid case data", extra={"error": str(e)})
+>         log.warning("invalid input", extra={"error": str(e)})
 >         return None
 >     
->     result = predict(data)  # let this fail loudly if broken
+>     result = compute(data)  # let this fail loudly if broken
 >     table.put_item(Item=result.model_dump())  # same here
 >     return result
 > ```
@@ -237,11 +243,11 @@ def process_case_data(case_json):
 
 **Bad:**
 ```python
-def calculate_settlement(case):
-    if case.total_damages is not None:
-        if case.liability_assigned:
-            if case.treatment_recommended:
-                return case.total_damages * LIABILITY_FACTOR
+def calculate_payout(order):
+    if order.total is not None:
+        if order.is_valid:
+            if order.has_discount:
+                return order.total * DISCOUNT_RATE
             else:
                 return 0
         else:
@@ -254,14 +260,14 @@ def calculate_settlement(case):
 > Flatten with early returns:
 >
 > ```python
-> def calculate_settlement(case: Case) -> float | None:
->     if case.total_damages is None:
+> def calculate_payout(order: Order) -> float | None:
+>     if order.total is None:
 >         return None
->     if not case.liability_assigned:
+>     if not order.is_valid:
 >         return 0.0
->     if not case.treatment_recommended:
+>     if not order.has_discount:
 >         return 0.0
->     return case.total_damages * LIABILITY_FACTOR
+>     return order.total * DISCOUNT_RATE
 > ```
 >
 > Read top-to-bottom: early exits for invalid states, then the success path.
@@ -272,22 +278,22 @@ def calculate_settlement(case):
 
 **Bad:**
 ```python
-class DocumentCache:
-    def __init__(self, dynamodb_table):
-        self._table = dynamodb_table
+class DataStore:
+    def __init__(self, backend):
+        self._backend = backend
         self._local_cache = {}
     
-    def get(self, doc_id):
-        if doc_id in self._local_cache:
-            return self._local_cache[doc_id]
-        item = self._table.get_item(Key={'id': doc_id})
+    def get(self, key):
+        if key in self._local_cache:
+            return self._local_cache[key]
+        item = self._backend.fetch(key)
         if item:
-            self._local_cache[doc_id] = item
+            self._local_cache[key] = item
         return item
     
-    def set(self, doc_id, value):
-        self._local_cache[doc_id] = value
-        self._table.put_item(Item={'id': doc_id, 'data': value})
+    def set(self, key, value):
+        self._local_cache[key] = value
+        self._backend.store(key, value)
 ```
 
 **Review Comment:**
@@ -295,17 +301,17 @@ class DocumentCache:
 >
 > Rethink:
 > ```python
-> class DocumentCache:
->     def fetch(self, doc_id: str) -> Document | None:
->         """Fetch document with transparent two-tier caching."""
+> class DataStore:
+>     def retrieve(self, key: str) -> Data | None:
+>         """Retrieve data with transparent multi-tier caching."""
 >         ...
 >     
->     def invalidate(self, doc_id: str) -> None:
->         """Clear both cache layers for this document."""
+>     def clear(self, key: str) -> None:
+>         """Clear data from all cache layers."""
 >         ...
 > ```
 >
-> Hide `get`/`set` and `_local_cache` from callers. They call `fetch()` and don't care about tiers.
+> Hide `get`/`set` and `_local_cache` from callers. They call `retrieve()` and don't care about tiers.
 
 ---
 
