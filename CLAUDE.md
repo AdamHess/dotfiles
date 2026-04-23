@@ -30,6 +30,6 @@ Use this file as the entry point for coding and review behavior. Keep guidance s
 
 ## Personal Defaults
 
-- Style profile: `claude/context/personal-style-from-docr.md`
-- Actionable rules: `claude/standards/personal-rules.md`
-- Code review examples: `claude/review/code-review-examples.md` (10 concrete patterns with made-up code)
+- Implementation guide: `claude/standards/how-i-write.md` (detailed with code examples)
+- Quick rules reference: `claude/standards/personal-rules.md`
+- Code review patterns: `claude/review/code-review-examples.md` (10 patterns with made-up code)
